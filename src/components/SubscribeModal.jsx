@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import "./SubscribeModal.css";
 import { motion } from "framer-motion";
 
+const API_BASE = "http://localhost:8083"; // adjust to your backend
+
 export default function SubscribeModal() {
   const loc = useLocation();
   const navigate = useNavigate();
@@ -67,6 +69,22 @@ export default function SubscribeModal() {
     return `${base}?${params.toString()}`;
   };
 
+  // helper to call backend subscribe endpoint
+  async function postSubscription(payload) {
+    try {
+      const res = await fetch(`${API_BASE}/api/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn("subscribe POST failed", err);
+      return null;
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -78,34 +96,70 @@ export default function SubscribeModal() {
 
     // if user chose QR payment (and not free), show QR instead of immediate processing
     if (plan !== "free" && paymentMethod === "qr") {
-      // generate QR payment payload and show QR interface by toggling a piece of state (we reuse success flow later)
       setProcessing(false);
       // create receipt id pre-emptively so QR encodes it
       const rid = `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
       const url = `${window.location.origin}/receipt/${rid}`;
       setReceiptId(rid);
       setReceiptUrl(url);
-      // show QR and wait for user to confirm payment (mock)
+
+      // Persist subscription with backend (method: qr)
+      const payload = {
+        email,
+        plan,
+        method: "qr",
+        cardLast4: null,
+        receiptId: rid,
+        source,
+      };
+      const resp = await postSubscription(payload);
+      if (resp && resp.receiptId) {
+        setReceiptId(resp.receiptId);
+        setReceiptUrl(resp.receiptUrl || url);
+      }
+
       setSuccess(false);
       setQrPaid(false);
-      // focus UI on QR -- we'll render QR in the form view
       return;
     }
 
-    // card flow or free plan -> process immediately (mock)
+    // card flow or free plan -> process immediately (mocked)
     setProcessing(true);
 
-    // mock "server" call
+    // simulate server/process time
     await new Promise((r) => setTimeout(r, 1200));
 
-    // create a mock receipt id and URL
+    // create a mock receipt id and URL (frontend fallback)
     const rid = `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
-    const url = `${window.location.origin}/receipt/${rid}`; // placeholder receipt url
-    setReceiptId(rid);
-    setReceiptUrl(url);
 
-    setProcessing(false);
-    setSuccess(true);
+    // prepare payload to persist subscription (only send safe card info)
+    const digits = (cardNumber || "").replace(/\s+/g, "");
+    const cardLast4 = digits ? digits.slice(-4) : null;
+
+    const payload = {
+      email,
+      plan,
+      method: paymentMethod === "card" ? "card" : paymentMethod,
+      cardLast4,
+      receiptId: rid,
+      source,
+    };
+
+    // try backend — if it fails, fallback to local mock flow
+    const resp = await postSubscription(payload);
+    if (resp && resp.receiptId) {
+      setReceiptId(resp.receiptId);
+      setReceiptUrl(resp.receiptUrl || `${window.location.origin}/receipt/${resp.receiptId}`);
+      setProcessing(false);
+      setSuccess(true);
+    } else {
+      // backend failed -> use local mock receipt and still show success
+      const url = `${window.location.origin}/receipt/${rid}`;
+      setReceiptId(rid);
+      setReceiptUrl(url);
+      setProcessing(false);
+      setSuccess(true);
+    }
   };
 
   // after user scans QR with their phone and pays, they click "I've paid"
@@ -114,11 +168,31 @@ export default function SubscribeModal() {
     // simulate verification
     await new Promise((r) => setTimeout(r, 900));
     setQrPaid(true);
-    // finalize receipt
-    const rid = receiptId || `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
+
+    // finalize receipt (if not already persisted)
+    let rid = receiptId;
+    if (!rid) {
+      rid = `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
+      setReceiptId(rid);
+    }
     const url = `${window.location.origin}/receipt/${rid}`;
-    setReceiptId(rid);
     setReceiptUrl(url);
+
+    // Persist final subscription (qr paid)
+    const payload = {
+      email,
+      plan,
+      method: "qr",
+      cardLast4: null,
+      receiptId: rid,
+      source,
+    };
+    const resp = await postSubscription(payload);
+    if (resp && resp.receiptId) {
+      setReceiptId(resp.receiptId);
+      setReceiptUrl(resp.receiptUrl || url);
+    }
+
     setProcessing(false);
     setSuccess(true);
   };
@@ -271,7 +345,6 @@ export default function SubscribeModal() {
   }
 
   // FORM VIEW
-  // Payment QR: when paymentMethod === 'qr' and plan !== 'free', we show a big payment QR and an "I've paid" button to simulate completion.
   const paymentPayload = () => {
     const amount = plan === "monthly" ? "4.99" : plan === "yearly" ? "39.00" : "0.00";
     return `pay:travelforge|receipt:${receiptId || "PRE"}|email:${email}|plan:${plan}|amount:${amount}`;

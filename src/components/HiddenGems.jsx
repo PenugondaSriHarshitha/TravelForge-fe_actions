@@ -162,6 +162,9 @@ export default function HiddenGems() {
   const [bookingGem, setBookingGem] = useState(null);
   const [bookingForm, setBookingForm] = useState({ date: "", people: 2, note: "" });
 
+  // NEW: processing state while sending booking to backend
+  const [processingBooking, setProcessingBooking] = useState(false);
+
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState("");
   const [sortBy, setSortBy] = useState("popular");
@@ -275,26 +278,74 @@ export default function HiddenGems() {
     setBookingOpen(true);
   };
 
-  const confirmBooking = () => {
+  // UPDATED: send booking to backend and add server response to plans
+  const confirmBooking = async () => {
     if (!bookingForm.date) {
       setToast("Pick a date to book ✨");
       setTimeout(() => setToast(null), 1600);
       return;
     }
-    const newPlan = {
-      id: `${bookingGem.id}-${Date.now()}`,
-      gemId: bookingGem.id,
-      title: bookingGem.title,
-      date: bookingForm.date,
-      people: bookingForm.people,
-      note: bookingForm.note,
-      price: Math.round(800 + Math.random() * 1200),
+
+    // create local plan item for UI (price calculation same as before)
+    const price = Math.round(800 + Math.random() * 1200);
+
+    // Build booking payload expected by your Spring Boot Booking entity
+    const payload = {
+      userId: 1, // replace with real user id when you have auth
+      type: "guide",
+      city: bookingGem.title,
+      checkin: bookingForm.date, // backend will receive e.g. "2025-10-09" - your entity uses LocalDateTime; backend may parse/adjust
+      nights: 1,
+      guests: bookingForm.people,
+      perUnit: price,
+      extrasCost: 0,
+      subtotal: price,
+      discount: 0,
+      taxes: 0,
+      total: price,
+      status: "confirmed",
+      // latitude/longitude left null
     };
-    setPlans((p) => [newPlan, ...p]);
-    setBookingOpen(false);
-    setSelected(null);
-    setToast("🌸 Your guide is booked (demo)!");
-    setTimeout(() => setToast(null), 2200);
+
+    setProcessingBooking(true);
+    try {
+      const res = await fetch("http://localhost:8083/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Booking failed: ${res.status} ${text}`);
+      }
+
+      const saved = await res.json();
+      // The backend returns the saved Booking (with bookingId) — adapt UI plan to show id and server fields
+      const newPlan = {
+        id: saved.bookingId ? `bk-${saved.bookingId}` : `${bookingGem.id}-${Date.now()}`,
+        gemId: bookingGem.id,
+        title: bookingGem.title,
+        date: bookingForm.date,
+        people: bookingForm.people,
+        note: bookingForm.note,
+        price: saved.total ?? price,
+        bookingRaw: saved,
+      };
+
+      setPlans((p) => [newPlan, ...p]);
+      setBookingOpen(false);
+      setSelected(null);
+      setToast("🌸 Your guide is booked (server)!");
+
+      setTimeout(() => setToast(null), 2200);
+    } catch (err) {
+      console.error(err);
+      setToast("Booking failed — try again.");
+      setTimeout(() => setToast(null), 2200);
+    } finally {
+      setProcessingBooking(false);
+    }
   };
 
   const addToPlanQuick = (g) => {
@@ -645,7 +696,9 @@ export default function HiddenGems() {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button className="btn btn-primary" onClick={confirmBooking}>Confirm Booking</button>
+                  <button className="btn btn-primary" onClick={confirmBooking} disabled={processingBooking}>
+                    {processingBooking ? "Booking…" : "Confirm Booking"}
+                  </button>
                   <button className="btn btn-ghost" onClick={() => { setBookingOpen(false); setToast("Booking cancelled"); setTimeout(() => setToast(null), 1400); }}>Cancel</button>
                 </div>
 

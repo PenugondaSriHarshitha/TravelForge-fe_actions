@@ -195,20 +195,76 @@ export default function Home() {
   }, [signupOpen]);
 
   // save helper
-  const saveItemAndGo = (item) => {
-    try {
-      const raw = localStorage.getItem(SAVES_KEY);
-      const existing = raw ? JSON.parse(raw) : [];
-      const safeId = item.id ?? `${item.city ?? "item"}-${Date.now()}`;
-      const normalized = { ...item, id: safeId };
-      const exists = existing.some((it) => it.id === normalized.id);
-      const updated = exists ? existing : [normalized, ...existing];
-      localStorage.setItem(SAVES_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.warn("save failed", e);
-    }
-    navigate("/saved");
+ // replace your existing saveItemAndGo with this ready-to-paste function
+const saveItemAndGo = async (item) => {
+  const SAVES_KEY = "travel_saved_items_v1";
+
+  // normalize / ensure id
+  const safeId = item.id ?? `${item.city ?? "item"}-${Date.now()}`;
+  const normalized = {
+    id: safeId,
+    city: item.city || item.title || "Unknown",
+    img: item.img || "",
+    kind: item.kind || "deal",
+    price: item.price || "—",
+    title: item.title || item.city || "",
+    userId: 1, // change to logged-in user id when available
+    saved_at: new Date().toISOString(),
   };
+
+  // 1) write to localStorage so Saved page updates immediately
+  try {
+    const raw = localStorage.getItem(SAVES_KEY);
+    const existing = raw ? JSON.parse(raw) : [];
+    // avoid duplicate by id
+    const exists = existing.some((it) => it.id === normalized.id);
+    const updated = exists ? existing : [normalized, ...existing];
+    localStorage.setItem(SAVES_KEY, JSON.stringify(updated));
+    // notify same-tab listeners (Saved.jsx listens for this)
+    window.dispatchEvent(new Event("saved-updated"));
+  } catch (e) {
+    console.warn("local save failed", e);
+  }
+
+  // 2) also attempt to persist to backend (best-effort)
+  try {
+    // adjust URL if your backend port differs
+    const res = await fetch("http://localhost:8083/api/saved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        city: normalized.city,
+        img: normalized.img,
+        kind: normalized.kind,
+        price: normalized.price,
+        title: normalized.title,
+        userId: normalized.userId,
+      }),
+    });
+
+    // optional: if backend returns created resource, you could merge/replace local copy
+    if (res.ok) {
+      try {
+        const serverItem = await res.json();
+        // if server returns id or saved_at, update local copy to reflect authoritative data
+        const raw2 = localStorage.getItem(SAVES_KEY);
+        const cur = raw2 ? JSON.parse(raw2) : [];
+        const merged = cur.map((it) => (it.id === normalized.id ? { ...it, ...serverItem } : it));
+        localStorage.setItem(SAVES_KEY, JSON.stringify(merged));
+        window.dispatchEvent(new Event("saved-updated"));
+      } catch (err) {
+        // ignore JSON parse errors — not critical
+      }
+    } else {
+      console.warn("Backend save responded with", res.status);
+    }
+  } catch (e) {
+    console.warn("Backend save failed (network/error). Local save preserved.", e);
+  }
+
+  // navigate to saved page
+  navigate("/saved");
+};
 
   // SEARCH / NAVIGATION
   const simulateSearch = (e) => {

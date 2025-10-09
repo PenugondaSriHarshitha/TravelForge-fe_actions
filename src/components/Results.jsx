@@ -14,7 +14,37 @@ import Booking from "./Booking";
    Full Results.jsx with expanded CITY_COORDS
    - more cities and exact locations
    - flight demo, quiz modal, wiki lookups, map follow
+   - ADDED: lightweight backend fetch + booking create
    =========================== */
+
+/* ---------------- Simple API helper ---------------- */
+const API_BASE = (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_BASE) || (typeof import.meta !== "undefined" ? (import.meta.env?.VITE_API_BASE || "") : "") || "";
+async function apiFetch(path, opts = {}) {
+  const headers = opts.headers ? { ...opts.headers } : {};
+  // attach token if present
+  try {
+    const token = localStorage.getItem("auth_token");
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  } catch (e) {}
+  if (opts.body && !(opts.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...opts,
+    headers,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(`API error ${res.status}: ${text || res.statusText}`);
+    err.status = res.status;
+    throw err;
+  }
+  if (res.status === 204) return null;
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return res.json();
+  return res.text();
+}
+/* ---------------------------------------------------- */
 
 /* ---------------- Helpers ---------------- */
 function useQuery() {
@@ -264,6 +294,12 @@ export default function Results() {
   const [bookingType, setBookingType] = useState("stay");
   // -------------------------------------------------
 
+  // ---------- ADDED: remote results state ----------
+  const [remoteResults, setRemoteResults] = useState(null);
+  const [loadingResults, setLoadingResults] = useState(false);
+  const [resultsError, setResultsError] = useState(null);
+  // -------------------------------------------------
+
   // overlay / flight state
   const [overlayMode, setOverlayMode] = useState("educational"); // educational | fun | stats
   const [flightPath, setFlightPath] = useState(null);
@@ -287,13 +323,59 @@ export default function Results() {
 
   useEffect(() => { try { localStorage.setItem("tm_view_mode", viewMode); } catch (e) {} }, [viewMode]);
 
+  /* ---------------- Load remote search results (if backend available) ---------------- */
+  useEffect(() => {
+    let abort = false;
+    async function load() {
+      setLoadingResults(true);
+      setResultsError(null);
+      try {
+        const from = encodeURIComponent(query.get("from") || "");
+        const tab = encodeURIComponent(activeTab || "flights");
+        const data = await apiFetch(`/api/search?from=${from}&tab=${tab}`, { method: "GET" });
+        if (!abort) {
+          // normalize to array of items with lat/lng
+          if (Array.isArray(data) && data.length) {
+            const normalized = data.map(d => ({
+              id: d.id || d.bookingId || `${(d.kind||tab)[0] || "X"}${Math.floor(Math.random()*9000)}`,
+              kind: d.kind || tab,
+              city: d.city || d.title || "",
+              title: d.title || (d.kind ? `${d.kind} in ${d.city}` : d.city),
+              price: d.price || (d.total ? `$${d.total}` : "$0"),
+              lat: (d.lat || d.latitude || d.latitude || d.lat) ?? (d.latitude ?? d.lat ?? null),
+              lng: (d.lng || d.longitude || d.lon || d.lng) ?? (d.longitude ?? d.lng ?? null),
+              stops: d.stops || d.stops,
+              category: d.category || "any",
+              airline: d.airline || "any",
+              rating: d.rating || 4.2,
+            }));
+            setRemoteResults(normalized);
+          } else {
+            setRemoteResults(null);
+          }
+        }
+      } catch (err) {
+        if (!abort) {
+          setRemoteResults(null);
+          setResultsError(err.message || String(err));
+        }
+      } finally {
+        if (!abort) setLoadingResults(false);
+      }
+    }
+    load();
+    return () => { abort = true; };
+  }, [query.get("from"), activeTab, sortBy, stopFilter, airlineFilter]);
+
+  /* ---------------- Replace local const results with remote (if available) ---------------- */
   const results = useMemo(() => {
+    if (remoteResults && Array.isArray(remoteResults) && remoteResults.length) return remoteResults;
     if (activeTab === "flights") return sample.flights;
     if (activeTab === "stays") return sample.stays;
     if (activeTab === "cars") return sample.cars;
     if (activeTab === "packages") return sample.packages;
     return sample.flights;
-  }, [activeTab]);
+  }, [remoteResults, activeTab]);
 
   const counts = useMemo(() => {
     const total = results.length;
@@ -423,7 +505,7 @@ export default function Results() {
         const mapEl = document.querySelector(".leaflet-container");
         if (mapEl && mapEl._leaflet_map) {
           try {
-            mapEl._leaflet_map.panTo([planePos ? planePos[0] : cur[0], planePos ? planePos[1] : cur[1]], { animate: true, duration: 0.6 });
+            mapEl._leaflet_map.panTo([planePos ? planePos[0] : (cur && cur[0]), planePos ? planePos[1] : (cur && cur[1])], { animate: true, duration: 0.6 });
           } catch (err) {}
         }
       }
@@ -524,6 +606,38 @@ export default function Results() {
       return "";
     }
   }
+
+  /* ---------------- Booking: create booking on server (if backend available) ---------------- */
+  async function createBookingOnServer(bookingPayload) {
+    try {
+      const res = await apiFetch("/api/bookings", {
+        method: "POST",
+        body: JSON.stringify(bookingPayload),
+      });
+      return res;
+    } catch (err) {
+      console.warn("[createBookingOnServer] failed", err);
+      throw err;
+    }
+  }
+
+  async function handleBookingConfirmed(data) {
+    try {
+      const payload = { ...(bookingItem || {}), ...data };
+      // try to save to server (if API reachable)
+      try {
+        const serverRes = await createBookingOnServer(payload);
+        console.log("Booking created on server:", serverRes);
+      } catch (e) {
+        console.warn("Could not save booking to server — continuing locally", e);
+      }
+      setBookingOpen(false);
+    } catch (err) {
+      alert("Failed to confirm booking. See console.");
+      console.error(err);
+    }
+  }
+  /* ------------------------------------------------------------------------------------------ */
 
   return (
     <motion.main className="results-root" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -796,9 +910,8 @@ export default function Results() {
         item={bookingItem || {}}
         type={bookingType}
         onConfirmed={(data) => {
-          // close modal after confirmed; you can also navigate or show a toast here
-          console.log("Booking confirmed:", data);
-          setBookingOpen(false);
+          // call server create then close
+          handleBookingConfirmed(data);
         }}
       />
       {/* --------------------------------------------------- */}

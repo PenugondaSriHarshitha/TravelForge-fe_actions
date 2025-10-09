@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import "./LocalGuides.css";
+const API_BASE = "http://localhost:8083/api/guides";
 
 /**
  * Full LocalGuides component
@@ -214,8 +215,33 @@ export default function LocalGuides() {
   }
   function removeToast(id) { setToasts(s => s.filter(t => t.id !== id)); }
 
-  useEffect(() => { try { localStorage.setItem("localGuides_v2_guides", JSON.stringify(guides)); } catch {} }, [guides]);
-  useEffect(() => { try { localStorage.setItem("localGuides_v2_pending", JSON.stringify(pending)); } catch {} }, [pending]);
+useEffect(() => {
+  async function fetchData() {
+    try {
+      // Load published guides
+      const res = await fetch(`${API_BASE}?status=published`);
+      const data = await res.json();
+      setGuides(data);
+      addToast({ content: "✅ Loaded from backend" });
+    } catch (err) {
+      console.error("Failed to fetch guides:", err);
+      addToast({ content: "⚠️ Backend not reachable", variant: "warn" });
+    }
+
+    try {
+      // Load pending guides
+      const resP = await fetch(`${API_BASE}?status=pending`);
+      const dataP = await resP.json();
+      setPending(dataP);
+    } catch (err) {
+      console.error("Failed to fetch pending guides:", err);
+    }
+  }
+
+  fetchData();
+}, []);
+
+  //useEffect(() => { try { localStorage.setItem("localGuides_v2_pending", JSON.stringify(pending)); } catch {} }, [pending]);
 
   // UI state
   const [query, setQuery] = useState("");
@@ -345,46 +371,84 @@ export default function LocalGuides() {
     return err;
   }
 
-  function submitToPending(e) {
-    e?.preventDefault?.();
-    const errors = validateSubmit(submitForm);
-    if (Object.keys(errors).length) { setSubmitErrors(errors); return; }
-    const newId = submitForm.id || uid();
-    const tagsArr = submitForm.tags.split(",").map(t => t.trim()).filter(Boolean);
-    const coords = (submitForm.coordsLat || submitForm.coordsLng) ? { lat: submitForm.coordsLat ? Number(submitForm.coordsLat) : undefined, lng: submitForm.coordsLng ? Number(submitForm.coordsLng) : undefined } : undefined;
-    const guide = {
-      id: newId,
-      title: submitForm.title.trim(),
-      location: submitForm.location.trim(),
-      tags: tagsArr,
-      thumbnail: submitForm.thumbnail || buildPlaceholderImage(newId),
-      hero: submitForm.hero || buildPlaceholderImage(newId + "-hero", 1200, 720),
-      excerpt: submitForm.excerpt || "",
-      author: submitForm.author || "Local Guide",
-      duration: submitForm.duration || "",
-      rating: submitForm.rating ? Number(submitForm.rating) : undefined,
-      favorite: false,
-      directions: submitForm.directions || "",
-      coords,
-    };
-    setPending(p => [guide, ...p]);
-    setSubmitOpen(false);
-    addToast({ content: "Guide submitted to pending queue" });
+   async function submitToPending(e) {
+  e?.preventDefault?.();
+  const errors = validateSubmit(submitForm);
+  if (Object.keys(errors).length) {
+    setSubmitErrors(errors);
+    return;
   }
 
-  function approvePending(id) {
-    const g = pending.find(x => x.id === id);
-    if (!g) return;
-    setPending(p => p.filter(x => x.id !== id));
-    setGuides(gs => [g, ...gs]);
-    addToast({ content: `${g.title} approved` });
+  const newId = submitForm.id || uid();
+  const tagsArr = submitForm.tags.split(",").map((t) => t.trim()).filter(Boolean);
+  const coords =
+    submitForm.coordsLat || submitForm.coordsLng
+      ? {
+          lat: Number(submitForm.coordsLat) || null,
+          lng: Number(submitForm.coordsLng) || null,
+        }
+      : null;
+
+  const guide = {
+    id: newId,
+    title: submitForm.title.trim(),
+    location: submitForm.location.trim(),
+    tags: tagsArr,
+    thumbnail: submitForm.thumbnail || "/src/images/default.png",
+    hero: submitForm.hero || "/src/images/default.png",
+    excerpt: submitForm.excerpt || "",
+    author: submitForm.author || "Local Guide",
+    duration: submitForm.duration || "",
+    rating: submitForm.rating ? Number(submitForm.rating) : 0,
+    favorite: false,
+    directions: submitForm.directions || "",
+    coordsLat: coords?.lat || null,
+    coordsLng: coords?.lng || null,
+    status: "pending",
+  };
+
+  try {
+    const res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(guide),
+    });
+    if (!res.ok) throw new Error("Failed to submit");
+    const saved = await res.json();
+    setPending((p) => [saved, ...p]);
+    addToast({ content: "✅ Submitted to backend" });
+    setSubmitOpen(false);
+  } catch (err) {
+    console.error("Submit error:", err);
+    addToast({ content: "❌ Backend not reachable", variant: "warn" });
   }
-  function rejectPending(id) {
-    const g = pending.find(x => x.id === id);
-    if (!g) return;
-    setPending(p => p.filter(x => x.id !== id));
-    addToast({ content: `${g.title} rejected`, variant: "warn" });
+}
+
+  async function approvePending(id) {
+  try {
+    const res = await fetch(`${API_BASE}/${id}/approve`, { method: "POST" });
+    if (!res.ok) throw new Error("Failed to approve");
+    const updated = await res.json();
+    setGuides((g) => [updated, ...g]);
+    setPending((p) => p.filter((x) => x.id !== id));
+    addToast({ content: "✅ Approved and saved" });
+  } catch (err) {
+    console.error("Approve failed:", err);
+    addToast({ content: "❌ Approval failed", variant: "warn" });
   }
+}
+
+  async function rejectPending(id) {
+  try {
+    await fetch(`${API_BASE}/${id}/reject`, { method: "POST" });
+    setPending((p) => p.filter((x) => x.id !== id));
+    addToast({ content: "❌ Rejected (updated backend)", variant: "warn" });
+  } catch (err) {
+    console.error("Reject failed:", err);
+    addToast({ content: "❌ Reject failed", variant: "warn" });
+  }
+}
+
 
   // force regenerate fresh unique images (clears storage)
   function clearAndRegenerate() {
