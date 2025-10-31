@@ -526,15 +526,7 @@ const saveItemAndGo = async (item) => {
                         <button className="btn-primary" onClick={() => goExplore({ id: "p-santorini", city: "Santorini", price: "$399", img: Santorini })}>Explore</button>
                         <button className="btn-ghost" style={{ marginLeft: 8 }} onClick={() => goBook({ id: "p-santorini", city: "Santorini", price: "$399", img: Santorini })}>Book</button>
 
-                        {/* NEW: Mood Trip button (route) */}
-                        <button
-                          className="btn-primary"
-                          style={{ marginLeft: 12, background: 'linear-gradient(90deg,#38ef7d,#ffb86b)' }}
-                          onClick={() => navigate('/mood-trip')}
-                          aria-label="Open Mood Trip Planner"
-                        >
-                          Plan by mood ✨
-                        </button>
+                        
 
                         {/* Save (heart) on feature */}
                         <button

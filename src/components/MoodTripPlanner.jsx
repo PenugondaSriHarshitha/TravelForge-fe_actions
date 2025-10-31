@@ -116,7 +116,8 @@ function synthesizeItinerary({ mood, destination, start, end, budget }) {
 
 export default function MoodTripPlanner() {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(true);
+ // Start closed by default — only open when explicitly triggered
+  const [open, setOpen] = useState(false);
   const [mood, setMood] = useState("adventurous");
   const [destination, setDestination] = useState("");
   const [start, setStart] = useState("");
@@ -197,11 +198,12 @@ export default function MoodTripPlanner() {
     return () => window.removeEventListener("openMoodPlanner", openHandler);
   }, []);
 
-  // navigation helper: go to home and close overlay
+
   const goHome = useCallback(() => {
-    setOpen(false);
-    navigate("/");
-  }, [navigate]);
+  setOpen(false);
+  navigate("/", { replace: true });
+}, [navigate]);
+
 
   // pause/resume video when overlay open state changes
   useEffect(() => {

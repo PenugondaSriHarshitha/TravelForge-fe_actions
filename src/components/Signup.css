@@ -208,3 +208,8 @@ input:-webkit-autofill:focus {
   .left-icon { font-size: 18px; }
   .input-wrap input { padding-right: 42px; }
 }
+/* Force all text in signup modal to be dark */
+.signup-card,
+.signup-card * {
+  color: #222 !important;
+}

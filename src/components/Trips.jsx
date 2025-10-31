@@ -214,6 +214,33 @@ export default function Trips() {
     try { return JSON.parse(localStorage.getItem(LOCAL_CREATED) || "[]"); } catch { return []; }
   });
   const [trips, setTrips] = useState(() => [...(JSON.parse(localStorage.getItem(LOCAL_CREATED) || "[]")), ...builtin]);
+// put this inside the Trips() component, near your other useEffect hooks
+useEffect(() => {
+  const panel = document.querySelector(".list-panel");
+  if (!panel) return;
+
+  // make the panel and its children black text
+  panel.style.color = "#000";
+
+  // set children text to black, but preserve button text white
+  panel.querySelectorAll("*").forEach((el) => {
+    // skip images, svg, inputs, and buttons
+    const tag = el.tagName && el.tagName.toLowerCase();
+    if (["img", "svg", "input", "button", "path"].includes(tag)) return;
+
+    // don't override elements that are buttons or inside buttons
+    if (el.closest && el.closest(".btn")) return;
+
+    try { el.style.color = "#000"; } catch (e) {}
+  });
+
+  // ensure buttons remain readable (white text)
+  panel.querySelectorAll(".btn").forEach((b) => {
+    try { b.style.color = "#000000ff"; b.style.fill = "#fff"; } catch (e) {}
+  });
+
+  // cleanup — optional: nothing to cleanup since we're applying inline styles
+}, []); // run once on mount
 
   useEffect(() => {
     localStorage.setItem(LOCAL_CREATED, JSON.stringify(createdTrips || []));

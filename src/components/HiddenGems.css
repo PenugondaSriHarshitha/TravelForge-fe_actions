@@ -4,7 +4,7 @@
 
 /* -------- variables -------- */
 :root{
-  --bg-900:#f4f3e7;
+  --bg-900:#f9ebd7;
   --panel:#c2edf5;
   --muted:#016e5e;
   --muted-2:#003c2d;
@@ -77,7 +77,7 @@
 .input, .select {
   height: 44px; min-width: 220px; padding: 10px 14px; border-radius: 12px;
   background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
-  color: var(--text); font-weight:700;
+  color: #005544; font-weight:700;
   box-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
 
@@ -102,7 +102,7 @@
   align-items: center;
 }
 .stories-left, .stories-right { display:flex; align-items:center; justify-content:center; }
-.control { width:48px; height:48px; border-radius:999px; background: var(--glass-strong); display:flex; align-items:center; justify-content:center; border:none; color:var(--text); }
+.control { width:48px; height:48px; border-radius:999px; background: var(--glass-strong); display:flex; align-items:center; justify-content:center; border:none; color:#004b3b; }
 
 /* story card root */
 .story-card {
@@ -162,13 +162,13 @@
 .hg-thumb-badge { position:absolute; left:12px; top:12px; padding:8px 10px; border-radius:10px; font-weight:900; background: linear-gradient(90deg,var(--accent-a),var(--accent-b)); color:#000000; box-shadow: 0 8px 24px rgba(64,224,208,0.06); }
 
 /* body area fills remaining vertical space to align footers */
-.hg-body { padding: 14px; display:flex; flex-direction:column; gap: 10px; flex:1; color:var(--text); }
+.hg-body { padding: 14px; display:flex; flex-direction:column; gap: 10px; flex:1; color:#005f4a; }
 .hg-title-row { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
 .hg-title-row h3 { margin:0; font-size:16px; font-weight:900; color:var(--text); line-height:1.05; }
 .hg-subtle { color: var(--muted-2); font-weight:700; font-size:13px; }
 
 /* description gets constrained to keep even height */
-.hg-body p { color: var(--muted-2); font-weight:600; line-height:1.5; margin:0; flex:1 1 auto; }
+.hg-body p { color: #88caba; font-weight:600; line-height:1.5; margin:0; flex:1 1 auto; }
 
 /* footer with tags + rating */
 .hg-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:8px; }
@@ -188,7 +188,7 @@
 }
 
 /* empty state */
-.planner-empty { text-align:center; color:#ffff; padding: 24px 6px; }
+.planner-empty { text-align:center; color:#00322c; padding: 24px 6px; }
 
 /* plan list item layout */
 .plan-item {
@@ -211,7 +211,7 @@
 .modal-head { display:flex; justify-content:space-between; gap:8px; align-items:center; }
 .modal-body { display:flex; gap:14px; margin-top:12px; align-items:flex-start; }
 .modal-body img { width:360px; height:260px; object-fit:cover; border-radius:10px; }
-.modal-desc { color:#016e5e; font-weight:700; line-height:1.45; }
+.modal-desc { color:#01221d; font-weight:700; line-height:1.45; }
 
 /* booking card */
 .booking-card {
@@ -244,7 +244,7 @@
 
 /* -------- OVERRIDES to ensure readability (inline styles) -------- */
 .hg-root, .hg-root * { color: inherit !important; }
-.hg-subtle, .tag, .chip, .planner-box * { color: var(--muted-2) !important; }
+.hg-subtle, .tag, .chip, .planner-box * { color: #00bcbc !important; }
 .btn, .btn-ghost, .btn-primary { color: #041212 !important; }
 
 /* stroke / focus */
@@ -426,7 +426,7 @@ button:focus, .chip:focus, .icon-btn:focus, .btn:focus { outline: 3px solid rgba
 .story-right .tips-inline, .modal-body .tips-inline {
   display:block;
   margin-top:8px;
-  color:#e9fff8 !important;
+  color:#156e52 !important;
   background: rgba(64,224,208,0.02);
   padding:6px 8px;
   border-radius:8px;
@@ -627,4 +627,95 @@ button:focus, .chip:focus, .icon-btn:focus, .btn:focus {
   padding: 2px 6px;
   font-size: 12px;
   margin-left: 6px;
+}
+/* 🔧 Force all text to dark color (override white text everywhere) */
+.story-badge,
+.story-right,
+.story-right *,
+.hg-body,
+.hg-body *,
+.hg-footer,
+.modal-card,
+.modal-card *,
+.planner-empty,
+.planner-empty *,
+.hg-card,
+.hg-card *,
+.hg-subtle,
+.tips,
+.tips *,
+.chip,
+.chip *,
+.hg-title-row h3,
+.hg-sub,
+.modal-desc {
+  color: #000000 !important;   /* solid dark text */
+  text-shadow: none !important;
+}
+/* 🎨 Force all filter and dropdown text to dark */
+.hg-filters,
+.hg-filters *,
+.hg-filter-bar,
+.hg-filter-bar *,
+.filter-btn,
+.filter-btn *,
+.sort-btn,
+.sort-btn *,
+select,
+select *,
+option {
+  color: #000 !important;            /* make text dark */
+  background-color: #fffbe8 !important;  /* soft light yellow background */
+  border-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 🎨 Also override dark mode styles */
+.dark .hg-filters,
+.dark .hg-filters *,
+.dark .filter-btn,
+.dark .sort-btn,
+.dark select,
+.dark option {
+  color: #000 !important;
+  background-color: #fffbe8 !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+}
+/* ✅ Force filters, sort, and tab buttons to dark text */
+.hg-filter-btn,
+.hg-sort-btn,
+.hg-filter-btn *,
+.hg-sort-btn *,
+button.filter-btn,
+button.sort-btn,
+.hg-filters button,
+.hg-filter-bar button,
+.hg-controls button,
+.hg-filters select,
+.hg-filters option,
+.hg-filter-bar select,
+.hg-filter-bar option {
+  color: #000 !important;                /* dark text */
+  background-color: #fffbe8 !important;  /* soft yellow background */
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  text-shadow: none !important;
+}
+
+/* 🌓 Override dark theme too */
+.dark .hg-filter-btn,
+.dark .hg-sort-btn,
+.dark .hg-filter-btn *,
+.dark .hg-sort-btn *,
+.dark .hg-filters button,
+.dark .hg-filter-bar button {
+  color: #000 !important;
+  background-color: #6b5d144e !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 🧭 Ensure “Explore Stories / Quick Peek / Gallery” text is dark too */
+.hg-controls,
+.hg-controls *,
+.tab-btn,
+.tab-btn * {
+  color: #000 !important;
 }

@@ -34,7 +34,7 @@
     color: rgba(255, 255, 255, 0.87);
     background-color: #242424;
     --card-bg: linear-gradient(180deg,#111,#0e0e0e);
-    --text: #f6f7f7;
+    --text: #2c3030;
     --muted: #9aa3a3;
   }
 }

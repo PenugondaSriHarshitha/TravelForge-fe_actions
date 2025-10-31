@@ -26,7 +26,7 @@
 .lg-sub {
   margin-top:6px;
   /* requested: black text for that tagline */
-  color:#000000;
+  color: #64bebe;
   font-weight:700;
   opacity:0.95;
 }
@@ -104,3 +104,54 @@
 
 /* small helper */
 .tag-pill.small { padding:6px 8px; font-size:12px; }
+/* === Make cards light yellow and text black === */
+.card {
+  background: #fff4bd !important;   /* soft yellow background */
+  border: 1px solid #ffffff !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  color: #3a3a3a !important;           /* ensure default text is black */
+}
+
+.card * {
+  color: #000 !important;           /* make all child text black */
+}
+
+/* Optional: make card titles stand out */
+.card-title {
+  color: #000 !important;
+  font-weight: 800;
+}
+
+/* Small tags inside the card */
+.tag-mini {
+  background: rgba(212, 255, 246, 0.5);
+  color: #64bebe !important;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Buttons inside cards */
+.btn-open,
+.btn-fav {
+  color: #000 !important;
+  background: #fef9e3 !important;   /* yellowish button background */
+  border: 0.2px solid #ffe477 !important;
+}
+/* === Top header buttons text black === */
+.lg-header a,
+.lg-header button,
+.lg-header span {
+  color: #00352d !important;     /* make them black */
+  font-weight: 700 !important;
+}
+
+/* === Change that dark green bar === */
+.lg-controls {
+  background: #ffffff !important;   /* soft yellow shade */
+  border: 1px solid #e6d47f !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+/* Also make text inside the bar readable */
+.lg-controls * {
+  color: #000 !important;
+}

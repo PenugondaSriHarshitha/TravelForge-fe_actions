@@ -625,7 +625,7 @@ text-shadow: 0 2px 12px rgba(0,0,0,0.6),
 .weather h3,
 .grid-header h3,
 .recommended-wrap h3 {
-  color: #020202 !important;           /* strong white for max contrast */
+  color: #005048 !important;           /* strong white for max contrast */
   opacity: 1 !important;               /* ensure not faded */
   font-weight: 900 !important;
   font-size: 1.35rem !important;
@@ -1071,4 +1071,39 @@ text-shadow: 0 2px 12px rgba(0,0,0,0.6),
   left: 0;
   right: 0;
   z-index: 999;
+}
+/* --- Force yellow shade for cards --- */
+.card {
+  background: linear-gradient(180deg, #fff7cc, #fff6d1) !important;  /* soft yellow */
+  color: #000 !important;  /* ensure dark readable text */
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Optional: Make chart container also yellowish */
+.chart-card, 
+.advice-card {
+  background: linear-gradient(180deg, #fff7cc, #fff7d6) !important;
+  color: #000 !important;
+}
+/* --- Force all boxes (black + green) to yellow shade --- */
+.card,
+.chart-card,
+.advice-card,
+.best-time-card,
+.highlight-card {
+  background: linear-gradient(180deg, #fff7cc, #ffe680) !important; /* soft yellow */
+  color: #000000 !important;  /* dark text */
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Optional stronger yellow if you want brighter tone */
+.dark .card,
+.dark .chart-card,
+.dark .advice-card,
+.dark .best-time-card,
+.dark .highlight-card {
+  background: linear-gradient(180deg, #fff4b0, #ffdf70) !important;
+  color: #000000 !important;
 }
