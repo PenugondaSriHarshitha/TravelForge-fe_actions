@@ -33,6 +33,48 @@ const RELATED = [
 
 export default function SunsetEscapes() {
   const navigate = useNavigate();
+// comment state
+const [comments, setComments] = useState(() => {
+  // load from localStorage if available
+  const saved = localStorage.getItem("sunsetComments");
+  return saved ? JSON.parse(saved) : [];
+});
+const [newComment, setNewComment] = useState("");
+
+// utility to save in localStorage
+useEffect(() => {
+  localStorage.setItem("sunsetComments", JSON.stringify(comments));
+}, [comments]);
+
+// helper to get readable time
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - ts) / 60000);
+  if (diff < 1) return "Just now";
+  if (diff < 60) return `${diff} min ago`;
+  if (diff < 1440) return `${Math.floor(diff / 60)} hr ago`;
+  return `${Math.floor(diff / 1440)} day ago`;
+}
+
+// post new comment
+const handlePostComment = () => {
+  if (!newComment.trim()) return;
+  const newEntry = {
+    id: Date.now(),
+    text: newComment.trim(),
+    likes: 0,
+    time: Date.now(),
+  };
+  setComments((prev) => [newEntry, ...prev]);
+  setNewComment("");
+};
+
+// like / delete
+const handleLike = (id) =>
+  setComments((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, likes: c.likes + 1 } : c))
+  );
+const handleDelete = (id) =>
+  setComments((prev) => prev.filter((c) => c.id !== id));
 
   // reading progress
   const [progress, setProgress] = useState(0);
@@ -254,6 +296,55 @@ export default function SunsetEscapes() {
             </button>
           </div>
         </section>
+        {/* Comment Input Section */}
+<section className="card comments">
+  <h3 className="card-title">💬 Share your sunset thoughts</h3>
+
+  <div className="comment-form">
+    <input
+      type="text"
+      placeholder="Type your comment..."
+      value={newComment}
+      onChange={(e) => setNewComment(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
+    />
+    <button className="btn-primary" onClick={handlePostComment}>
+      Post ✨
+    </button>
+  </div>
+
+  {/* Display Comments */}
+  <div className="comment-list">
+    {comments.length === 0 ? (
+      <p className="muted">No comments yet — be the first 🌅</p>
+    ) : (
+      comments.map((c) => (
+        <motion.div
+          key={c.id}
+          className="comment-item"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="comment-header">
+            <strong>Traveler</strong>
+            <span className="time">{timeAgo(c.time)}</span>
+          </div>
+          <p className="comment-text">{c.text}</p>
+          <div className="comment-actions">
+            <button className="like-btn" onClick={() => handleLike(c.id)}>
+              ❤️ {c.likes}
+            </button>
+            <button className="delete-btn" onClick={() => handleDelete(c.id)}>
+              🗑️
+            </button>
+          </div>
+        </motion.div>
+      ))
+    )}
+  </div>
+</section>
+
       </main>
 
       {/* Lightbox modal */}

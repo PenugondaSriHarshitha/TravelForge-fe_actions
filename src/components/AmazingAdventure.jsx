@@ -70,6 +70,11 @@ export default function AmazingAdventure() {
   const markerRefs = useRef({});
 
   const center = [EATERIES[0].lat, EATERIES[0].lng];
+const [comments, setComments] = useState([
+  { id: 1, name: "Asha", text: "Loved this — the lantern night sounds magical!", time: new Date(), likes: 3 },
+  { id: 2, name: "Ravi", text: "Can you share the exact name of that food stall?", time: new Date(), likes: 1 },
+]);
+const [newComment, setNewComment] = useState("");
 
   // open google maps directions
   const openGoogleMaps = ({ lat, lng, name }) => {
@@ -107,6 +112,45 @@ export default function AmazingAdventure() {
     const body = encodeURIComponent(`Check out Subbu’s travel story: ${window.location.href}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
+  // Format time as "x min ago"
+const timeAgo = (date) => {
+  const diff = Math.floor((new Date() - new Date(date)) / 60000);
+  if (diff < 1) return "just now";
+  if (diff < 60) return `${diff} min ago`;
+  const hrs = Math.floor(diff / 60);
+  if (hrs < 24) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+};
+
+// Handle posting
+const handlePostComment = () => {
+  if (!newComment.trim()) return;
+
+  const newEntry = {
+    id: Date.now(),
+    name: "Guest",
+    text: newComment,
+    time: new Date(),
+    likes: 0,
+  };
+
+  setComments((prev) => [newEntry, ...prev]); // add on top
+  setNewComment("");
+};
+
+// Like toggle
+const handleLike = (id) => {
+  setComments((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, likes: c.likes + 1 } : c))
+  );
+};
+
+// Delete comment
+const handleDelete = (id) => {
+  setComments((prev) => prev.filter((c) => c.id !== id));
+};
+
 
   return (
     <div className="aa-root">
@@ -372,24 +416,58 @@ export default function AmazingAdventure() {
         </motion.section>
 
         {/* Comments */}
-        <motion.section className="card aa-comments" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }}>
-          <h3 className="card-title">Community Notes & Comments 🗨️</h3>
-          <div className="comments-list">
-            <div className="comment">
-              <strong>Asha</strong>
-              <p>Loved this — the lantern night sounds magical!</p>
-            </div>
-            <div className="comment">
-              <strong>Ravi</strong>
-              <p>Can you share the exact name of that food stall?</p>
-            </div>
-          </div>
+        {/* Comment input section */}
+<div className="comment-form-box">
+  <h3 className="card-title">💬 Leave a Comment</h3>
+  <div className="comment-form">
+    <input
+      type="text"
+      placeholder="Add your thoughts..."
+      value={newComment}
+      onChange={(e) => setNewComment(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
+    />
+    <button className="btn-post" onClick={handlePostComment}>
+      Post ✨
+    </button>
+  </div>
+</div>
+{/* Comments display section */}
+<div className="comments-list">
+  <h3 className="card-title">Recent Comments 🗨️</h3>
 
-          <div className="comment-form">
-            <input placeholder="Add a short note..." />
-            <button className="btn-primary small">Post</button>
-          </div>
-        </motion.section>
+  {comments.length === 0 ? (
+    <p className="muted">No comments yet. Be the first to share your thoughts!</p>
+  ) : (
+    comments.map((c) => (
+      <motion.div
+        key={c.id}
+        className="comment"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="comment-header">
+          <strong>{c.name}</strong>
+          <span className="time">{timeAgo(c.time)}</span>
+        </div>
+
+        <p className="comment-text">{c.text}</p>
+
+        <div className="comment-actions">
+          <button onClick={() => handleLike(c.id)} className="like-btn">
+            ❤️ {c.likes}
+          </button>
+          <button onClick={() => handleDelete(c.id)} className="delete-btn">
+            🗑️
+          </button>
+        </div>
+      </motion.div>
+    ))
+  )}
+</div>
+
+
       </main>
     </div>
   );
