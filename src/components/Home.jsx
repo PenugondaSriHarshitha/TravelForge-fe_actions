@@ -2,8 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 
-import logo from "../images/logo.png";
+
+import logo from "../images/logo1.png";
 import Beaches from "../images/beaches.png";
 import Resorts from "../images/Resorts.png";
 import Kyoto from "../images/Kyoto.png";
@@ -58,6 +60,7 @@ function useCountUp(target, duration = 900) {
 function StatCard({ icon, value, suffix = "", label, note }) {
   const count = useCountUp(value);
   return (
+    
     <motion.div
       className="stat-card"
       initial={{ y: 12, opacity: 0 }}
@@ -363,6 +366,7 @@ const saveItemAndGo = async (item) => {
   };
 
   return (
+    
     <div className={`home-root ${darkMode ? "dark" : "light"}`}>
       <AnimatePresence mode="wait">
         <motion.main className="home-page" variants={pageVariants} initial="hidden" animate="enter" exit="exit">
@@ -371,7 +375,7 @@ const saveItemAndGo = async (item) => {
             <nav className="nav glass" aria-label="Main navigation">
               <div className="nav-left">
                 <img src={logo} alt="TravelForge logo" className="logo" />
-                <div className="brand">TravelForge</div>
+                <div className="brand"></div>
               </div>
 
               <div className="nav-right">
@@ -461,9 +465,9 @@ const saveItemAndGo = async (item) => {
               <div className="hero glass">
                 <div className="hero-left">
                   <h1 id="hero-title" className="hero-title">
-                    Island getaways made <span className="accent">easy & joyful</span>
+                  <span className="accent"> Where your next story begins</span> 
                   </h1>
-                  <p className="hero-sub">Compare fares, stays and rides — pick the island that fits your dream.</p>
+                  <p className="hero-sub">Every journey begins with a spark of wonder.</p>
 
                   <div className="tabs" role="tablist" aria-label="Booking tabs">
                     {["flights","stays","cars","packages"].map(t => (
@@ -789,6 +793,7 @@ const saveItemAndGo = async (item) => {
     setSignupOpen(false);
   }}
 />
+
 
     </div>
   );

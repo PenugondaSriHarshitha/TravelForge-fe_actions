@@ -90,7 +90,7 @@ html, body, #root {
 .nav.glass{background:linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.64));border:1px solid rgba(0,0,0,0.04);box-shadow:var(--soft-shadow)}
 .home-root.dark .nav.glass{background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.48));border:1px solid rgba(255, 255, 255, 0.309);box-shadow:var(--card-shadow)}
 
-.logo{max-height:56px;width:auto;object-fit:contain;margin-right:0.6rem;border-radius:8px;padding:1px}
+.logo{max-height:76px;width:300px;object-fit:contain;margin-right:0.6rem;border-radius:10px;padding:1px}
 .brand{font-weight:800;font-size:1.1rem;color:#004D40;display:flex;align-items:center;gap:8px}
 .nav-right{display:flex;gap:0.6rem;align-items:center}
 .mode-toggle,.signin{background:#40E0D0;border:1px solid rgba(0,0,0,0.06);padding:8px 12px;border-radius:12px;cursor:pointer;font-weight:700;color:var(--text);transition:transform 160ms,box-shadow 160ms}

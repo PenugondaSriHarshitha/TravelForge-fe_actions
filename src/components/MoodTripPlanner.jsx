@@ -129,7 +129,7 @@ export default function MoodTripPlanner() {
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
 
-  // Inject compact component-scoped CSS once
+  // Inject compact component-scoped CSS once (with translucent backdrop)
   useEffect(() => {
     const id = "mood-trip-styles";
     if (document.getElementById(id)) return;
@@ -137,8 +137,23 @@ export default function MoodTripPlanner() {
     style.id = id;
     style.innerHTML = `
       :root{--g-a:#3ee7a4;--g-b:#ffb86b;--muted:#5b6b66;--ink:#062a27}
-      .video-background{position:fixed;inset:0;z-index:1;overflow:hidden;background:#000}
+      /* video sits below the backdrop and overlay */
+      .video-background{position:fixed;inset:0;z-index:99997;overflow:hidden;background:#000}
       .video-background video, .video-background img{width:100%;height:100%;object-fit:cover;display:block;opacity:0.86;filter:brightness(0.95)}
+      /* translucent/backdrop that blocks underlying UI but shows video through */
+      .mood-backdrop{
+        position: fixed;
+        inset: 0;
+        z-index: 99998;
+        background: transparent;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+        transition: opacity .24s ease;
+      }
+
+      
+      .home-root.dark .mood-backdrop{ background: rgba(0,0,0,0.42); }
+      /* overlay (planner) placed above backdrop */
       .mood-overlay{position:fixed;right:28px;top:80px;width:560px;max-width:calc(100% - 48px);z-index:99999;border-radius:18px;overflow:hidden;
         box-shadow:0 30px 100px rgba(6,22,18,0.22);border:1px solid rgba(6,22,18,0.06);max-height:92vh;font-family:'Poppins',system-ui,sans-serif;
         background:linear-gradient(180deg, rgba(255,255,255,0.92), rgba(250,250,252,0.95));backdrop-filter: blur(6px)}
@@ -198,21 +213,25 @@ export default function MoodTripPlanner() {
     return () => window.removeEventListener("openMoodPlanner", openHandler);
   }, []);
 
-
   const goHome = useCallback(() => {
-  setOpen(false);
-  navigate("/", { replace: true });
-}, [navigate]);
+    setOpen(false);
+    navigate("/", { replace: true });
+  }, [navigate]);
 
-
-  // pause/resume video when overlay open state changes
+  // robust play/pause handling for the background video
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
     if (open) {
-      // try to play (browser policies may block autoplay if not muted — it's muted here)
+      // try to restart & play (handle autoplay rejection)
+      try { vid.currentTime = 0; } catch (e) {}
       const p = vid.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          // attempt a muted play as fallback (muted already set, but ensure)
+          try { vid.muted = true; vid.play().catch(()=>{}); } catch(e){}
+        });
+      }
     } else {
       try { vid.pause(); } catch (e) { /* ignore */ }
     }
@@ -280,14 +299,34 @@ export default function MoodTripPlanner() {
 
   return (
     <>
-      {/* Background video (full-screen) */}
-      <div className="video-background" aria-hidden>
-        {!videoError ? (
-          <video ref={videoRef} autoPlay muted loop playsInline src={video6} poster={posterImg} onError={() => setVideoError(true)} />
-        ) : (
-          <img src={posterImg} alt="background poster" />
-        )}
-      </div>
+{/* Background video (full-screen) */}
+{/* prevent clicks on the video area from bubbling to page-level click handlers */}
+<div
+  className="video-background"
+  aria-hidden
+  role="presentation"
+  onClick={(e) => e.stopPropagation()}
+>
+  {!videoError ? (
+    <video
+      ref={videoRef}
+      autoPlay
+      muted
+      loop
+      playsInline
+      src={video6}
+      poster={posterImg}
+      onError={() => setVideoError(true)}
+      onClick={(e) => e.stopPropagation()} // also stop clicks on the video element
+    />
+  ) : (
+    <img src={posterImg} alt="background poster" onClick={(e) => e.stopPropagation()} />
+  )}
+</div>
+
+
+      {/* translucent backdrop (blocks clicks to underlying page but shows video) */}
+      <div className="mood-backdrop" onClick={() => setOpen(false)} aria-hidden />
 
       {/* Planner overlay */}
       <div className="mood-overlay" role="dialog" aria-label="Mood Trip Planner">
