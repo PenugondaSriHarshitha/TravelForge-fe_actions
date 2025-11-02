@@ -27,10 +27,49 @@ export default function CityAndSea() {
 
   // reading progress
   const [progress, setProgress] = useState(0);
+const [postText, setPostText] = useState("");
+const [posts, setPosts] = useState([]);
 
   // lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+// --- Comments / Posts Section ---
+const [comments, setComments] = useState([]);
+const [newComment, setNewComment] = useState("");
+
+// Utility: Time ago formatter
+const timeAgo = (timestamp) => {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
+
+// Add comment
+const handlePostComment = () => {
+  if (!newComment.trim()) return;
+  const newCmt = {
+    id: Date.now(),
+    text: newComment.trim(),
+    time: Date.now(),
+    likes: 0,
+  };
+  setComments([newCmt, ...comments]);
+  setNewComment("");
+};
+
+// Like comment
+const handleLike = (id) => {
+  setComments((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, likes: c.likes + 1 } : c))
+  );
+};
+
+// Delete comment
+const handleDelete = (id) => {
+  setComments((prev) => prev.filter((c) => c.id !== id));
+};
 
   useEffect(() => {
     function onScroll() {
@@ -210,6 +249,58 @@ export default function CityAndSea() {
               ))}
             </div>
           </section>
+          {/* --- New Post Section --- */}
+{/* ✨ Post & Comments Section */}
+<section className="card comments">
+  <h3 className="card-title">💬 Share your City & Sea thoughts</h3>
+
+  <div className="comment-form">
+    <input
+      type="text"
+      placeholder="Type your comment..."
+      value={newComment}
+      onChange={(e) => setNewComment(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
+    />
+    <button className="btn-primary" onClick={handlePostComment}>
+      Post ✨
+    </button>
+  </div>
+
+  {/* Display Comments */}
+  <div className="comment-list">
+    {comments.length === 0 ? (
+      <p className="muted">No comments yet — be the first 🌅</p>
+    ) : (
+      comments.map((c) => (
+        <motion.div
+          key={c.id}
+          className="comment-item"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="comment-header">
+            <strong>Traveler</strong>
+            <span className="time">{timeAgo(c.time)}</span>
+          </div>
+          <p className="comment-text">{c.text}</p>
+
+          <div className="comment-actions">
+            <button className="like-btn" onClick={() => handleLike(c.id)}>
+              ❤️ {c.likes}
+            </button>
+            <button className="delete-btn" onClick={() => handleDelete(c.id)}>
+              🗑️
+            </button>
+          </div>
+        </motion.div>
+      ))
+    )}
+  </div>
+</section>
+
+
         </main>
       </div>
 

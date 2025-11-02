@@ -327,3 +327,72 @@ body, html, #root {
 /* small visual polish */
 .card { transition: box-shadow .18s ease, transform .18s ease; }
 .card:hover { box-shadow: 0 14px 40px rgba(0,0,0,0.08); transform: translateY(-4px); }
+.comments {
+  margin-top: 25px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.comment-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.comment-form input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comment-item {
+  background: #fdfdfd;
+  border: 1px solid #eee;
+  padding: 10px 14px;
+  border-radius: 12px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.comment-text {
+  margin: 6px 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.like-btn,
+.delete-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.like-btn:hover {
+  transform: scale(1.2);
+}
+
+.delete-btn:hover {
+  color: red;
+  transform: scale(1.2);
+}
