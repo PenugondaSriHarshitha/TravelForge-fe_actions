@@ -115,8 +115,14 @@ export default function Signup({ open, onClose, defaultMode = "signup", onSucces
 
         fm.reset(); // clear form fields
         setPassword(""); // clear local password state
-        await fetchUsers(); // refresh list shown in modal
-        onClose();
+       await fetchUsers(); // refresh list shown in modal
+
+// ✅ Instead of closing, switch to login screen automatically
+setMode("login");
+setPassword("");
+setStrength({ label: "", score: 0 });
+alert("Account created successfully! Please log in to continue.");
+
       } else {
         // read error body if available
         const body = await res.json().catch(() => null);

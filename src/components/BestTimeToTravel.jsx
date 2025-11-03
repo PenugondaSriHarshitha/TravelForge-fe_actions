@@ -8,7 +8,7 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  Title,
+  Title as ChartTitle,
   Tooltip,
   Legend,
 } from "chart.js";
@@ -49,11 +49,48 @@ import img25 from "../images/img25.png";
 
 import "./BestTimeToTravel.css";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// ------- Optional fixed overrides you already had -------
+const DESTINATION_INFO = {
+  kerala: {
+    season: "Autumn",
+    months: "October to November",
+    bestTime: "Morning – Cool & peaceful for sightseeing 🌅",
+    tip: "Ideal weather for sightseeing & fewer crowds.",
+  },
+  goa: {
+    season: "Winter",
+    months: "November to February",
+    bestTime: "Evening – Perfect for beach sunsets 🌇",
+    tip: "Ideal for beach festivals & outdoor fun.",
+  },
+  kochi: {
+    season: "Monsoon",
+    months: "June to September",
+    bestTime: "Morning – Lush greenery & cool breezes 🌿",
+    tip: "Great for backwaters & monsoon lovers.",
+  },
+  ladakh: {
+    season: "Summer",
+    months: "May to September",
+    bestTime: "Morning – Great for trekking & photography 🏔️",
+    tip: "Perfect visibility and clear skies for adventure.",
+  },
+  delhi: {
+    season: "Winter",
+    months: "October to February",
+    bestTime: "Morning – Ideal for monuments & bazaars 🕌",
+    tip: "Avoid afternoons; winter air is crisp & pleasant.",
+  },
+};
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend);
 
 export default function BestTimeToTravel() {
   const navigate = useNavigate();
   const resultsRef = useRef(null);
+
+  // show the Best-Time card only after Search
+  const [searchClicked, setSearchClicked] = useState(false);
 
   // form state
   const [fromInput, setFromInput] = useState("");
@@ -63,15 +100,13 @@ export default function BestTimeToTravel() {
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // modal state (in-file modal)
+  // modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalItem, setModalItem] = useState(null);
 
   const openModal = (item, mode = "details") => {
-    // keep small payload, add mode for different button labels if needed
     setModalItem({ ...item, mode });
     setModalOpen(true);
-    // lock scroll
     document.body.style.overflow = "hidden";
   };
   const closeModal = () => {
@@ -96,6 +131,9 @@ export default function BestTimeToTravel() {
 
   // scroll-to-top visibility
   const [showTop, setShowTop] = useState(false);
+
+  // dynamic best-time data
+  const [timeData, setTimeData] = useState(getBestTimeInfo(""));
 
   // currency helper
   const currency = (n) =>
@@ -198,7 +236,9 @@ export default function BestTimeToTravel() {
     const base = 8400;
     return Array.from({ length: 30 }).map((_, i) => {
       const spike = i % 7 === 0 ? 4200 : 0;
-      const wave = Math.round(base + Math.sin(i / 2) * 900 + Math.cos(i / 4) * 420 + spike + (Math.random() - 0.5) * 400);
+      const wave = Math.round(
+        base + Math.sin(i / 2) * 900 + Math.cos(i / 4) * 420 + spike + (Math.random() - 0.5) * 400
+      );
       return Math.max(2000, wave);
     });
   }, []);
@@ -211,7 +251,9 @@ export default function BestTimeToTravel() {
         {
           label: "Daily price",
           data: prices,
-          backgroundColor: prices.map((p) => (p === cheapest ? "rgba(255,152,67,0.95)" : "rgba(6,20,28,0.12)")),
+          backgroundColor: prices.map((p) =>
+            p === cheapest ? "rgba(255,152,67,0.95)" : "rgba(6,20,28,0.12)"
+          ),
           borderRadius: 8,
           borderSkipped: false,
           barThickness: 12,
@@ -226,9 +268,17 @@ export default function BestTimeToTravel() {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => `${currency(ctx.parsed.y)}` }, backgroundColor: "#0b1220", titleColor: "#e6fff9", bodyColor: "#e6fff9" },
+        tooltip: {
+          callbacks: { label: (ctx) => `${currency(ctx.parsed.y)}` },
+          backgroundColor: "#0b1220",
+          titleColor: "#e6fff9",
+          bodyColor: "#e6fff9",
+        },
       },
-      scales: { x: { grid: { display: false }, ticks: { color: "#516b67" } }, y: { grid: { color: "rgba(0,0,0,0.06)" }, ticks: { color: "#516b67" } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#516b67" } },
+        y: { grid: { color: "rgba(0,0,0,0.06)" }, ticks: { color: "#516b67" } },
+      },
     }),
     []
   );
@@ -241,21 +291,25 @@ export default function BestTimeToTravel() {
     const top = node.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: "smooth" });
   };
+
   const runSearch = (opts = {}) => {
     const dest = (opts.dest ?? toInput ?? "").trim();
     const sDate = opts.startDate ?? startDate;
     const eDate = opts.endDate ?? endDate;
 
-    // user feedback if destination is missing
     if (!dest) {
-      // small inline feedback: focus the "To (destination)" input and show a toast-like message
       const toField = document.getElementById("to-input");
       if (toField) {
         toField.focus();
-        // optional: briefly highlight the input
-        toField.animate([{ boxShadow: "0 0 0px rgba(255,100,100,0)" }, { boxShadow: "0 0 8px rgba(255,100,100,0.9)" }, { boxShadow: "0 0 0px rgba(255,100,100,0)" }], { duration: 700 });
+        toField.animate(
+          [
+            { boxShadow: "0 0 0px rgba(255,100,100,0)" },
+            { boxShadow: "0 0 8px rgba(255,100,100,0.9)" },
+            { boxShadow: "0 0 0px rgba(255,100,100,0)" },
+          ],
+          { duration: 700 }
+        );
       }
-      // small user notice
       alert("Please enter a destination in the 'To' field before searching.");
       return;
     }
@@ -265,6 +319,9 @@ export default function BestTimeToTravel() {
     setPage(1);
     setWeather(null);
     setSparkle(false);
+
+    // refresh best-time info for the chosen destination
+    setTimeData(getBestTimeInfo(dest));
 
     setTimeout(() => {
       const results = fakeSearchResults(dest, 24, sDate, eDate);
@@ -277,7 +334,6 @@ export default function BestTimeToTravel() {
     }, 700);
   };
 
-
   const handleSearchAndScroll = (e) => {
     e?.preventDefault();
     runSearch();
@@ -289,7 +345,14 @@ export default function BestTimeToTravel() {
     if (which === "end") setEndDate(value);
     const shouldSearch = toInput.trim().length > 0 && (which === "start" || which === "end");
     if (shouldSearch) {
-      setTimeout(() => runSearch({ startDate: which === "start" ? value : startDate, endDate: which === "end" ? value : endDate }), 300);
+      setTimeout(
+        () =>
+          runSearch({
+            startDate: which === "start" ? value : startDate,
+            endDate: which === "end" ? value : endDate,
+          }),
+        300
+      );
     }
   };
 
@@ -299,8 +362,8 @@ export default function BestTimeToTravel() {
   };
 
   const handleBook = (item) => {
-  navigate(`/book/${item.id}`, { state: { item, type: "stay" } });
-};
+    navigate(`/book/${item.id}`, { state: { item, type: "stay" } });
+  };
 
   const handleClear = () => {
     setAllResults([]);
@@ -310,6 +373,7 @@ export default function BestTimeToTravel() {
     setStartDate("");
     setEndDate("");
     setPage(1);
+    setSearchClicked(false);
   };
 
   useEffect(() => {
@@ -324,6 +388,155 @@ export default function BestTimeToTravel() {
     if (!a && b) return `Until ${b}`;
     return `${a} → ${b}`;
   };
+
+  // ---------- SMART PLACE-AWARE SEASON LOGIC ----------
+  function classifyDestination(raw) {
+    const s = (raw || "").toLowerCase();
+
+    // spring-bloom regions (takes priority over plain city)
+    const springBloom = [
+      "japan", "tokyo", "kyoto", "osaka", "kawaguchi", "fujikawaguchiko",
+      "korea", "seoul", "busan", "jeju",
+      "netherlands", "amsterdam", "keukenhof", "tulip", "lisse",
+      "washington dc", "dc", "vancouver"
+    ];
+
+    const desert = [
+      "dubai", "abu dhabi", "doha", "qatar", "muscat", "oman",
+      "jaisalmer", "rajasthan", "sahara", "gobi", "desert"
+    ];
+
+    const beach = [
+      "beach", "island", "coast",
+      "maldives", "bali", "phuket", "krabi", "samui", "langkawi",
+      "goa", "andaman", "lakshadweep",
+      "seychelles", "mauritius", "zanzibar",
+      "boracay", "palawan", "cebu",
+      "hawaii", "maui", "oahu", "kauai",
+      "ibiza", "mallorca", "cancun", "tulum", "punta cana",
+      "santorini", "mykonos", "amalfi", "rio", "nice"
+    ];
+
+    const mountain = [
+      "mount", "mt ", "alps", "himalaya", "rockies", "andes",
+      "ladakh", "leh", "manali", "kashmir", "gulmarg", "nainital", "shimla", "ooty",
+      "banff", "aspen", "whistler", "interlaken", "zermatt", "grindelwald",
+      "everest", "annapurna", "nepal", "sikkim"
+    ];
+
+    const snow = [
+      "iceland", "finland", "norway", "lapland", "sweden",
+      "alaska", "canada", "greenland", "arctic", "antarctica",
+      "sapporo", "hakuba", "niseko"
+    ];
+
+    const tropical = [
+      "tropical", "rainforest", "borneo", "sumatra",
+      "kerala", "sri lanka", "bali", "phuket", "thailand", "vietnam",
+      "bora bora", "fiji", "tahiti", "moorea", "bocas", "cairns", "costa rica"
+    ];
+
+    const city = [
+      "paris", "london", "rome", "florence", "milan", "venice",
+      "barcelona", "madrid", "berlin", "vienna", "prague",
+      "tokyo", "kyoto", "osaka", "seoul", "singapore", "bangkok", "kuala lumpur",
+      "amsterdam", "budapest", "lisbon", "athens",
+      "new york", "nyc", "los angeles", "chicago", "san francisco",
+      "sydney", "melbourne", "auckland",
+      "delhi", "mumbai", "dubai"
+    ];
+
+    const hit = (arr) => arr.some(k => s.includes(k));
+    if (hit(springBloom)) return "spring";
+    if (hit(desert)) return "desert";
+    if (hit(beach)) return "beach";
+    if (hit(mountain)) return "mountain";
+    if (hit(snow)) return "snow";
+    if (hit(tropical)) return "tropical";
+    if (hit(city)) return "city";
+
+    // fallback heuristic by suffixes/words
+    if (/\b(island|beach|bay|cove)\b/.test(s)) return "beach";
+    if (/\b(pass|peak|mt|trek|ridge)\b/.test(s)) return "mountain";
+
+    return "city";
+  }
+
+  function getBestTimeInfo(destination) {
+    const destKey = (destination || "").toLowerCase().trim();
+
+    // 1) Use explicit data if you defined it
+    if (destKey && DESTINATION_INFO[destKey]) {
+      return { ...DESTINATION_INFO[destKey] };
+    }
+
+    // 2) Smart classification
+    const cat = classifyDestination(destKey);
+
+    // time-of-day defaults by category
+    const bestTimeByCat = {
+      beach: "Evening – Perfect for beach sunsets 🌇",
+      tropical: "Afternoon – Beaches, snorkeling & calm seas 🏖️",
+      mountain: "Morning – Clear skies for trekking 🏔️",
+      desert: "Night – Ideal for stargazing & skyline views 🌙",
+      snow: "Morning – Best visibility on slopes ❄️",
+      spring: "Morning – Parks & blooms 🌸",
+      city: "Evening – Walks, rooftops & cafés 🌇",
+    };
+
+    // month ranges by category (generally correct for popular spots)
+    const monthsByCat = {
+      beach: "November to March",
+      tropical: "May to September (dry season)",
+      mountain: "May to September",
+      desert: "November to March",
+      snow: "December to March",
+      spring: "March to May",
+      city: "April to June / September to October",
+    };
+
+    // tips by category
+    const tipByCat = {
+      beach: "Dry season vibes — great for water sports and sunsets.",
+      tropical: "Dry season brings calmer seas & clear skies — perfect for islands.",
+      mountain: "Carry layers; nights get cold even in summer.",
+      desert: "Avoid midday heat; plan desert safaris for sunset.",
+      snow: "Check road/rail closures and pack thermal layers.",
+      spring: "Book early; blossom festivals & tulip season draw crowds.",
+      city: "Mild weather and fewer crowds than peak summer.",
+    };
+
+    // season label by category (human-friendly)
+    const seasonByCat = {
+      beach: "Winter (Dry)",
+      tropical: "Dry Season",
+      mountain: "Summer",
+      desert: "Winter",
+      snow: "Winter",
+      spring: "Spring",
+      city: "Spring / Autumn",
+    };
+
+    const season = seasonByCat[cat];
+    const months = monthsByCat[cat];
+    const bestTime = bestTimeByCat[cat];
+    const tip = tipByCat[cat];
+
+    return { season, months, bestTime, tip };
+  }
+  // ---------- END SMART LOGIC ----------
+
+  // keep timeData fresh when destination changes & every minute
+  useEffect(() => {
+    setTimeData(getBestTimeInfo(toInput));
+  }, [toInput]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeData(getBestTimeInfo(toInput));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [toInput]);
 
   return (
     <div className="bt-page">
@@ -340,12 +553,16 @@ export default function BestTimeToTravel() {
         />
         <div className="hero-overlay" aria-hidden />
         <div className="bt-hero-inner container">
-          <h1 className="bt-title">Know the Best Time to Travel <span role="img" aria-label="plane">✈️</span></h1>
-          <p className="bt-sub">Months, exact dates and booking tips — combined with price trends, hotel snapshots and live-ish weather so you can plan with confidence.</p>
+          <h1 className="bt-title">
+            Know the Best Time to Travel <span role="img" aria-label="plane">✈️</span>
+          </h1>
+          <p className="bt-sub">
+            Months, exact dates and booking tips — combined with price trends, hotel snapshots and live-ish weather so you can plan with confidence.
+          </p>
 
           <div className="bt-search glass-card">
             <form className="search-row" onSubmit={handleSearchAndScroll}>
-              {/* BACK BUTTON: placed at the left-most corner of the form */}
+              {/* Back button stays inside the search row */}
               <button
                 type="button"
                 className="back-btn"
@@ -380,7 +597,7 @@ export default function BestTimeToTravel() {
                 />
               </div>
 
-              {/* --- date range: two clear buttons + floating picker --- */}
+              {/* Date range with floating picker */}
               <div className="input-group date-range fancy-input" style={{ position: "relative", minWidth: 300 }}>
                 <Calendar className="icon" />
 
@@ -428,6 +645,8 @@ export default function BestTimeToTravel() {
                       onChange={({ startDate: s, endDate: e }) => {
                         setStartDate(s || "");
                         setEndDate(e || "");
+                        handleDateChange("start", s || "");
+                        handleDateChange("end", e || "");
                       }}
                     />
                   </div>
@@ -437,7 +656,12 @@ export default function BestTimeToTravel() {
               {/* Trip length */}
               <div className="input-group fancy-input" style={{ width: 120 }}>
                 <Calendar className="icon" />
-                <select value={tripLen} onChange={(e) => setTripLen(Number(e.target.value))} aria-label="Trip length" style={{ background: "transparent", border: "none", color: "inherit" }}>
+                <select
+                  value={tripLen}
+                  onChange={(e) => setTripLen(Number(e.target.value))}
+                  aria-label="Trip length"
+                  style={{ background: "transparent", border: "none", color: "inherit" }}
+                >
                   <option value={2}>2 days</option>
                   <option value={3}>3 days</option>
                   <option value={4}>4 days</option>
@@ -446,12 +670,21 @@ export default function BestTimeToTravel() {
               </div>
 
               {/* Search */}
-              <button className="btn-search" type="submit" aria-label="Search" disabled={loading} style={{ marginLeft: 8 }}>
+              <button
+                className="btn-search"
+                type="submit"
+                aria-label="Search"
+                disabled={loading}
+                style={{ marginLeft: 8 }}
+                onClick={() => setSearchClicked(true)} // let form onSubmit run the search
+              >
                 <Search /> <span className="btn-text">{loading ? "Searching…" : "Search"}</span>
               </button>
             </form>
 
-            <div className="search-meta"><span>✨ Fast fares</span> <span>🏨 Hotel insights</span> <span>📈 Historical trends</span></div>
+            <div className="search-meta">
+              <span>✨ Fast fares</span> <span>🏨 Hotel insights</span> <span>📈 Historical trends</span>
+            </div>
           </div>
         </div>
       </div>
@@ -460,28 +693,66 @@ export default function BestTimeToTravel() {
         <section className="results-summary">
           <div className="results-title">
             {allResults.length > 0 ? (
-              <h2 className={sparkle ? "sparkle" : ""}>Results for <span className="highlight">{toInput.toUpperCase()}</span> <small className="date-range-label">{readableRange(startDate, endDate)}</small></h2>
+              <h2 className={sparkle ? "sparkle" : ""}>
+                Results for <span className="highlight">{toInput.toUpperCase()}</span>{" "}
+                <small className="date-range-label">{readableRange(startDate, endDate)}</small>
+              </h2>
             ) : (
               <h2>Search to discover dates, prices & weather</h2>
             )}
           </div>
 
           {weather && (
-            <motion.div className="weather-inline card" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div
+              className="weather-inline card"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <div className="weather-inline-head">
-                <div className="weather-inline-temp">{weather.icon} <strong>{weather.temp}°C</strong></div>
-                <div className="weather-inline-desc">{weather.desc} — live snapshot for <strong>{toInput}</strong></div>
-                <div className="weather-mini-meta">Trip length: <strong>{tripLen} days</strong> &nbsp; • &nbsp; Dates: <strong>{readableRange(startDate, endDate)}</strong></div>
+                <div className="weather-inline-temp">
+                  {weather.icon} <strong>{weather.temp}°C</strong>
+                </div>
+                <div className="weather-inline-desc">
+                  {weather.desc} — live snapshot for <strong>{toInput}</strong>
+                </div>
+                <div className="weather-mini-meta">
+                  Trip length: <strong>{tripLen} days</strong> &nbsp; • &nbsp; Dates:{" "}
+                  <strong>{readableRange(startDate, endDate)}</strong>
+                </div>
               </div>
-              <div className="weather-inline-img"><img src={weather.img} alt="weather" /></div>
+              <div className="weather-inline-img">
+                <img src={weather.img} alt="weather" />
+              </div>
             </motion.div>
           )}
         </section>
 
+        {/* ✅ BEST TIME & SEASON — only after Search */}
+        {searchClicked && (
+          <motion.section
+            className={`best-time-section orange-theme`} 
+            // (change to "teal-theme" if you prefer the teal look)
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ marginBottom: 16 }}
+          >
+            <h3>🗓 Best Time & Season to Visit {toInput || ""}</h3>
+            <div className="bt-info-grid">
+              <div><strong>🌤 Season:</strong> {timeData.season}</div>
+              <div><strong>📅 Ideal Months:</strong> {timeData.months}</div>
+              <div><strong>🕒 Best Time of Day:</strong> {timeData.bestTime}</div>
+              <div><strong>💡 Travel Tip:</strong> {timeData.tip}</div>
+            </div>
+          </motion.section>
+        )}
+
         <section className="two-cols">
           <motion.div className="advice card" initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
             <h3>Our advice</h3>
-            <p className="lead">Take your trip in <strong>September</strong> — lower fares and pleasant weather make it a great choice.</p>
+            <p className="lead">
+              Take your trip in <strong>September</strong> — lower fares and pleasant weather make it a great choice.
+            </p>
             <p className="muted">Example airfare (roundtrip): <strong>{currency(14152)}</strong></p>
 
             <div className="action-row">
@@ -534,9 +805,10 @@ export default function BestTimeToTravel() {
                     </div>
 
                     <div className="meta-right">
-                      <div className="meta-price">{currency(r.price)} <small>/ night</small></div>
+                      <div className="meta-price">
+                        {currency(r.price)} <small>/ night</small>
+                      </div>
                       <div className="meta-actions">
-                        {/* Use openModal instead of alert */}
                         <button className="btn-details" onClick={() => openModal(r, "details")}>Details</button>
                         <button className="btn-primary" onClick={() => handleBook(r)}>Book</button>
                       </div>
@@ -593,13 +865,19 @@ export default function BestTimeToTravel() {
 
       <AnimatePresence>
         {showTop && (
-          <motion.button className="scroll-top" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+          <motion.button
+            className="scroll-top"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
             ⬆ Top
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* ---------- Compact modal (in-file) ---------- */}
+      {/* Compact modal */}
       <AnimatePresence>
         {modalOpen && modalItem && (
           <motion.div
@@ -626,25 +904,24 @@ export default function BestTimeToTravel() {
               </div>
 
               <div className="modal-body">
-  <h4 className="modal-title">{modalItem.title}</h4>
-  <p className="modal-sub">{modalItem.excerpt}</p>
+                <h4 className="modal-title">{modalItem.title}</h4>
+                <p className="modal-sub">{modalItem.excerpt}</p>
 
-  <div className="modal-info">
-    <div><strong>Price:</strong> {currency(modalItem.price)} <span>/ night</span></div>
-    <div><strong>Rating:</strong> ⭐ {modalItem.rating}</div>
-  </div>
+                <div className="modal-info">
+                  <div><strong>Price:</strong> {currency(modalItem.price)} <span>/ night</span></div>
+                  <div><strong>Rating:</strong> ⭐ {modalItem.rating}</div>
+                </div>
 
-  <div className="modal-actions">
-    <button className="btn-link" onClick={closeModal}>Close</button>
-    <button
-      className="btn-primary"
-      onClick={() => { closeModal(); handleBook(modalItem); }}
-    >
-      Book
-    </button>
-  </div>
-</div>
-
+                <div className="modal-actions">
+                  <button className="btn-link" onClick={closeModal}>Close</button>
+                  <button
+                    className="btn-primary"
+                    onClick={() => { closeModal(); handleBook(modalItem); }}
+                  >
+                    Book
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

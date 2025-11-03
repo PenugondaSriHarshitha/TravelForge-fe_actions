@@ -240,12 +240,44 @@ export default function Footer({
 
           <div className="footer-meta">
             <div className="socials">
-             <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social glass" aria-label="Facebook">🌐</a>
-<a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="social glass" aria-label="Twitter">🐦</a>
-<a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="social glass" aria-label="YouTube">▶</a>
-<a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="social glass" aria-label="Instagram">📸</a>
+  <a
+    href="https://www.facebook.com/share/1Af44e3wnZ/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="Facebook"
+  >
+    🌐
+  </a>
+  <a
+    href="https://twitter.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="Twitter"
+  >
+    🐦
+  </a>
+  <a
+    href="https://youtube.com/@travelforge?si=UmkXSnMwAFfO6yDG"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="YouTube"
+  >
+    ▶
+  </a>
+  <a
+    href="https://www.instagram.com/travelforge_09?igsh=ODlsdHZzZDdod3Zx"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="Instagram"
+  >
+    📸
+  </a>
+</div>
 
-            </div>
            <div className="legal">
   <span>© {new Date().getFullYear()} TravelForge</span>
   <Link to="/privacy">Privacy</Link>
