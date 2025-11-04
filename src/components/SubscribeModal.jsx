@@ -4,19 +4,20 @@ import { useLocation, useNavigate } from "react-router-dom";
 import "./SubscribeModal.css";
 import { motion } from "framer-motion";
 
-const API_BASE = "http://localhost:8083"; // adjust to your backend
+const API_BASE = "http://localhost:8083"; // Spring Boot backend
 
 export default function SubscribeModal() {
   const loc = useLocation();
   const navigate = useNavigate();
 
-  // incoming state (footer or call can pass { from, email })
+  // incoming state from gate
   const incomingEmail = loc?.state?.email || "";
+  const returnTo = loc?.state?.returnTo || null; // { path, extra }
   const source = loc?.state?.from || "";
 
-  // form state
+  // form
   const [email, setEmail] = useState(incomingEmail);
-  const [plan, setPlan] = useState("monthly"); // monthly | yearly | free
+  const [plan, setPlan] = useState("monthly"); // free | monthly | yearly
   const [paymentMethod, setPaymentMethod] = useState("card"); // card | qr
   const [cardName, setCardName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -25,13 +26,13 @@ export default function SubscribeModal() {
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
 
-  // success state
+  // success
   const [success, setSuccess] = useState(false);
   const [receiptId, setReceiptId] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [showReceiptInline, setShowReceiptInline] = useState(false);
 
-  // pretend payment status for QR
+  // for QR
   const [qrPaid, setQrPaid] = useState(false);
 
   useEffect(() => {
@@ -41,9 +42,7 @@ export default function SubscribeModal() {
   const simpleEmailValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
   const validateForm = () => {
-    if (!email || !simpleEmailValid(email)) {
-      return "Please enter a valid email address.";
-    }
+    if (!email || !simpleEmailValid(email)) return "Please enter a valid email address.";
     if (plan !== "free" && paymentMethod === "card") {
       if (!cardName.trim()) return "Cardholder name is required.";
       if (!/^\d{12,19}$/.test(cardNumber.replace(/\s+/g, ""))) return "Enter a valid card number (digits only).";
@@ -54,22 +53,30 @@ export default function SubscribeModal() {
   };
 
   const handleClose = () => {
+    // go back to where user came from if present, else home
+    const sessIntent = sessionStorage.getItem("LOCK_INTENT");
+    if (sessIntent) {
+      try {
+        const intent = JSON.parse(sessIntent);
+        navigate(intent.path, intent.extra || {});
+        sessionStorage.removeItem("LOCK_INTENT");
+        return;
+      } catch {}
+    }
+    if (returnTo?.path) {
+      navigate(returnTo.path, returnTo.extra || {});
+      return;
+    }
     if (source) navigate(-1);
     else navigate("/");
   };
 
-  // Build QR image url for the receipt or payment (public QR image generator)
   const buildQrUrl = (payload, size = "260x260") => {
     const base = "https://api.qrserver.com/v1/create-qr-code/";
-    const params = new URLSearchParams({
-      size,
-      data: payload,
-      format: "png",
-    });
+    const params = new URLSearchParams({ size, data: payload, format: "png" });
     return `${base}?${params.toString()}`;
   };
 
-  // helper to call backend subscribe endpoint
   async function postSubscription(payload) {
     try {
       const res = await fetch(`${API_BASE}/api/subscribe`, {
@@ -85,129 +92,85 @@ export default function SubscribeModal() {
     }
   }
 
+  const afterSubscribed = async (rid, planSaved) => {
+    try {
+      localStorage.setItem("travelforge_sub_email", email);
+      if (planSaved) localStorage.setItem("travelforge_sub_plan", planSaved);
+    } catch {}
+    // if there was an intent, go back exactly there
+    const sessIntent = sessionStorage.getItem("LOCK_INTENT");
+    const target = sessIntent ? JSON.parse(sessIntent) : returnTo;
+    if (sessIntent) sessionStorage.removeItem("LOCK_INTENT");
+
+    setSuccess(true);
+    setReceiptId(rid || "");
+    setReceiptUrl(`${window.location.origin}/receipt/${rid || "receipt"}`);
+
+    // small delay to let success view render, then auto-return in 1.2s
+    setTimeout(() => {
+      if (target?.path) navigate(target.path, target.extra || {});
+      else navigate("/");
+    }, 1200);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     const v = validateForm();
-    if (v) {
-      setError(v);
-      return;
-    }
+    if (v) return setError(v);
 
-    // if user chose QR payment (and not free), show QR instead of immediate processing
+    // QR flow (non-free)
     if (plan !== "free" && paymentMethod === "qr") {
-      setProcessing(false);
-      // create receipt id pre-emptively so QR encodes it
       const rid = `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
-      const url = `${window.location.origin}/receipt/${rid}`;
       setReceiptId(rid);
-      setReceiptUrl(url);
-
-      // Persist subscription with backend (method: qr)
-      const payload = {
-        email,
-        plan,
-        method: "qr",
-        cardLast4: null,
-        receiptId: rid,
-        source,
-      };
-      const resp = await postSubscription(payload);
-      if (resp && resp.receiptId) {
-        setReceiptId(resp.receiptId);
-        setReceiptUrl(resp.receiptUrl || url);
-      }
-
+      setReceiptUrl(`${window.location.origin}/receipt/${rid}`);
+      const payload = { email, plan, method: "qr", cardLast4: null, receiptId: rid, source };
+      await postSubscription(payload);
       setSuccess(false);
       setQrPaid(false);
       return;
     }
 
-    // card flow or free plan -> process immediately (mocked)
+    // card or free: process immediately (mock)
     setProcessing(true);
+    await new Promise((r) => setTimeout(r, 900));
 
-    // simulate server/process time
-    await new Promise((r) => setTimeout(r, 1200));
-
-    // create a mock receipt id and URL (frontend fallback)
     const rid = `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
-
-    // prepare payload to persist subscription (only send safe card info)
     const digits = (cardNumber || "").replace(/\s+/g, "");
     const cardLast4 = digits ? digits.slice(-4) : null;
 
-    const payload = {
-      email,
-      plan,
-      method: paymentMethod === "card" ? "card" : paymentMethod,
-      cardLast4,
-      receiptId: rid,
-      source,
-    };
-
-    // try backend — if it fails, fallback to local mock flow
+    const payload = { email, plan, method: paymentMethod === "card" ? "card" : paymentMethod, cardLast4, receiptId: rid, source };
     const resp = await postSubscription(payload);
-    if (resp && resp.receiptId) {
-      setReceiptId(resp.receiptId);
-      setReceiptUrl(resp.receiptUrl || `${window.location.origin}/receipt/${resp.receiptId}`);
-      setProcessing(false);
-      setSuccess(true);
-    } else {
-      // backend failed -> use local mock receipt and still show success
-      const url = `${window.location.origin}/receipt/${rid}`;
-      setReceiptId(rid);
-      setReceiptUrl(url);
-      setProcessing(false);
-      setSuccess(true);
-    }
+
+    setProcessing(false);
+    const finalRid = resp?.receiptId || rid;
+    await afterSubscribed(finalRid, plan);
   };
 
-  // after user scans QR with their phone and pays, they click "I've paid"
   const confirmQrPaid = async () => {
     setProcessing(true);
-    // simulate verification
     await new Promise((r) => setTimeout(r, 900));
     setQrPaid(true);
 
-    // finalize receipt (if not already persisted)
     let rid = receiptId;
     if (!rid) {
       rid = `TF-${Math.random().toString(36).slice(2, 9).toUpperCase()}`;
       setReceiptId(rid);
     }
-    const url = `${window.location.origin}/receipt/${rid}`;
-    setReceiptUrl(url);
+    setReceiptUrl(`${window.location.origin}/receipt/${rid}`);
 
-    // Persist final subscription (qr paid)
-    const payload = {
-      email,
-      plan,
-      method: "qr",
-      cardLast4: null,
-      receiptId: rid,
-      source,
-    };
-    const resp = await postSubscription(payload);
-    if (resp && resp.receiptId) {
-      setReceiptId(resp.receiptId);
-      setReceiptUrl(resp.receiptUrl || url);
-    }
+    const payload = { email, plan, method: "qr", cardLast4: null, receiptId: rid, source };
+    await postSubscription(payload);
 
     setProcessing(false);
-    setSuccess(true);
+    await afterSubscribed(rid, plan);
   };
 
-  // copy receipt link
   const copyReceiptLink = async () => {
-    try {
-      await navigator.clipboard.writeText(receiptUrl);
-      alert("Link copied to clipboard!");
-    } catch {
-      alert("Copy failed — please select and copy manually.");
-    }
+    try { await navigator.clipboard.writeText(receiptUrl); alert("Link copied to clipboard!"); }
+    catch { alert("Copy failed — please select and copy manually."); }
   };
 
-  // download QR image (forces a fetch and download)
   const downloadQr = async (payloadFn) => {
     try {
       const payload = payloadFn ? payloadFn() : `receipt:${receiptId}|email:${email}|plan:${plan}`;
@@ -228,21 +191,22 @@ export default function SubscribeModal() {
     }
   };
 
-  // small helpers for display
   const maskCard = (num) => {
-    const digits = num.replace(/\s+/g, "");
+    const digits = (num || "").replace(/\s+/g, "");
     if (!digits) return "•••• •••• •••• ••••";
     const last4 = digits.slice(-4).padStart(4, "•");
     return `•••• •••• •••• ${last4}`;
   };
-
   const formatCardInput = (val) => val.replace(/[^\d]/g, "").replace(/(.{4})/g, "$1 ").trim();
+  const paymentPayload = () => {
+    const amount = plan === "monthly" ? "4.99" : plan === "yearly" ? "39.00" : "0.00";
+    return `pay:travelforge|receipt:${receiptId || "PRE"}|email:${email}|plan:${plan}|amount:${amount}`;
+  };
 
-  // Inline receipt modal (small)
+  // Inline receipt
   const ReceiptInline = ({ onClose }) => {
     const payload = `receipt:${receiptId}|email:${email}|plan:${plan}`;
     const qrUrl = buildQrUrl(payload);
-
     return (
       <div className="inline-receipt-shell" role="dialog" aria-modal="true">
         <div className="inline-backdrop" onClick={onClose} />
@@ -280,27 +244,20 @@ export default function SubscribeModal() {
     );
   };
 
-  // SUCCESS VIEW (keeps everything inside modal)
+  // Success view
   if (success) {
     const payload = `receipt:${receiptId}|email:${email}|plan:${plan}`;
     const qrUrl = buildQrUrl(payload);
-
     return (
       <div className="subscribe-shell" role="dialog" aria-modal="true" aria-label="Subscription success">
         <div className="subscribe-backdrop" onClick={handleClose} />
-        <motion.div
-          className="subscribe-card subscribe-success cute"
-          initial={{ scale: 0.98, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.26 }}
-        >
+        <motion.div className="subscribe-card subscribe-success cute" initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.26 }}>
           <div className="success-head">
             <div>
               <div className="brand-pill">🎉 Subscribed</div>
               <h2 className="success-title">You're all set — welcome aboard!</h2>
               <p className="muted">A confirmation was sent to <strong>{email}</strong></p>
             </div>
-
             <button className="btn-close" onClick={handleClose} aria-label="Close success">✕</button>
           </div>
 
@@ -321,7 +278,6 @@ export default function SubscribeModal() {
                 </div>
 
                 <img src={qrUrl} alt="Subscription QR code" className="qr-img" />
-
                 <div className="qr-actions">
                   <button className="btn-ghost small" onClick={copyReceiptLink}>Copy link</button>
                   <button className="btn-primary small" onClick={() => downloadQr()}>Download QR</button>
@@ -333,23 +289,16 @@ export default function SubscribeModal() {
             <div className="success-cta">
               <button className="btn-primary" onClick={() => navigate("/")}>Back to Home</button>
               <button className="btn-ghost" onClick={handleClose} style={{ marginLeft: 8 }}>Close</button>
-
               <button className="link-small" onClick={() => setShowReceiptInline(true)} style={{ marginLeft: 12 }}>Open receipt</button>
             </div>
           </div>
         </motion.div>
-
         {showReceiptInline && <ReceiptInline onClose={() => setShowReceiptInline(false)} />}
       </div>
     );
   }
 
-  // FORM VIEW
-  const paymentPayload = () => {
-    const amount = plan === "monthly" ? "4.99" : plan === "yearly" ? "39.00" : "0.00";
-    return `pay:travelforge|receipt:${receiptId || "PRE"}|email:${email}|plan:${plan}|amount:${amount}`;
-  };
-
+  // Form view
   return (
     <div className="subscribe-shell" role="dialog" aria-modal="true" aria-label="Subscribe modal">
       <div className="subscribe-backdrop" onClick={handleClose} />
@@ -361,21 +310,13 @@ export default function SubscribeModal() {
             <h2>Get the best travel tips & deals</h2>
             <p className="muted">Hand-picked tips, early deals and short guides — delivered weekly.</p>
           </div>
-
           <button className="btn-close" onClick={handleClose} aria-label="Close subscribe">✕</button>
         </header>
 
         <form className="subscribe-form" onSubmit={handleSubmit}>
           <label className="field">
             <div className="field-label">Email</div>
-            <input
-              type="email"
-              placeholder="you@wondermail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              aria-required
-            />
+            <input type="email" placeholder="you@wondermail.com" value={email} onChange={(e) => setEmail(e.target.value)} required aria-required />
           </label>
 
           <div className="plans">
@@ -470,7 +411,6 @@ export default function SubscribeModal() {
 
           <div className="subscribe-actions">
             <button className="btn-ghost" type="button" onClick={handleClose}>Cancel</button>
-            {/* if QR is chosen we prevent immediate submit because QR flow is separate */}
             <button className="btn-primary" type="submit" disabled={processing} aria-busy={processing}>
               {processing ? "Processing…" : plan === "free" ? "Subscribe (Free)" : paymentMethod === "qr" ? `Show QR` : `Subscribe & Pay`}
             </button>
