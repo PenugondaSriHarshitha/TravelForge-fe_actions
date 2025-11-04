@@ -15,12 +15,21 @@ import img3 from "../images/img3.png";
 import "./Trips.css";
 import TripBuilder from "./TripBuilder";
 
-// Leaflet fix
+// Leaflet icon fix for bundlers
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
+/* ---------- helpers ---------- */
+
+// reliable random image (no API keys, always returns)
+const getRandomImage = (title = "travel") =>
+  `https://picsum.photos/seed/${encodeURIComponent(title)}-${Math.floor(
+    Math.random() * 100000
+  )}/800/500`;
+
+// currency
 const currencyINR = (n) =>
   Number(n || 0).toLocaleString("en-IN", {
     style: "currency",
@@ -28,6 +37,7 @@ const currencyINR = (n) =>
     maximumFractionDigits: 0,
   });
 
+// weather + best season (heuristic)
 function inferWeatherAndSeason(titleOrSource = "") {
   const key = (titleOrSource || "").toLowerCase();
   if (key.includes("goa") || key.includes("lisbon")) return { temp: 28, season: "Best in December", icon: "☀️" };
@@ -37,6 +47,7 @@ function inferWeatherAndSeason(titleOrSource = "") {
   return { temp: 27, season: "Best in September", icon: "☀️" };
 }
 
+// fun rename
 function generateCoolName(base = "") {
   const city = (base || "Wander").split(/[•\-–|,]/)[0].trim();
   const pools = [
@@ -44,33 +55,69 @@ function generateCoolName(base = "") {
     [`Saffron Streets of ${city}`, `${city}: Rooftops & Sunsets`, `Moonlit ${city}`, `${city} Cozy Corners`],
     [`${city} Pocket Guide`, `Little Joys of ${city}`, `${city} By Foot`, `${city} Mornings`],
   ];
-  return pools[Math.floor(Math.random() * pools.length)][Math.floor(Math.random() * 4)];
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  return pick(pick(pools));
 }
 
+// map coords guess
 function coordsFromText(text = "") {
   const k = text.toLowerCase();
-  if (k.includes("india") || k.includes("goa") || k.includes("vijayawada")) return [16.5062, 80.6480];
+  if (k.includes("india") || k.includes("goa") || k.includes("vijayawada")) return [16.5062, 80.648];
   if (k.includes("himalaya") || k.includes("ladakh")) return [34.1526, 77.5771];
   if (k.includes("maldives")) return [3.2028, 73.2207];
   if (k.includes("lisbon")) return [38.7223, -9.1393];
   if (k.includes("kyoto")) return [35.0116, 135.7681];
   if (k.includes("santorini") || k.includes("greece")) return [36.3932, 25.4615];
-  return [20.5937, 78.9629];
+  return [20.5937, 78.9629]; // India center-ish
 }
+
+// normalize trips from backend / builder to the UI shape we need
+function normalizeTrip(t) {
+  // days can be objects (preferred) or strings (fallback)
+  let days = [];
+  if (Array.isArray(t.days)) {
+    if (t.days.length && typeof t.days[0] === "string") {
+      days = t.days.map((title, i) => ({ day: i + 1, title: String(title) }));
+    } else {
+      days = t.days.map((d, i) => ({
+        day: Number(d.day ?? i + 1),
+        title: String(d.title ?? ""),
+      }));
+    }
+  }
+
+  return {
+    id: t.id ?? `trip-${Date.now()}-${Math.floor(Math.random() * 9999)}`,
+    title: t.title ?? "Untitled Trip",
+    subtitle:
+      t.subtitle ??
+      `${days.length} days • ${String(t.tripType || t.type || "trip").toLowerCase()}`,
+    dates: t.dateRange || t.dates || "",
+    price: Number(t.estimatedCost ?? t.price ?? 0),
+    image: t.image || getRandomImage(t.title),
+    fav: Boolean(t.fav),
+    days,
+    tags: Array.isArray(t.tags) ? t.tags : [],
+    source: t.destination || t.source || "",
+  };
+}
+
+/* ---------- component ---------- */
 
 export default function Trips() {
   const navigate = useNavigate();
   const mapRef = useRef(null);
 
+  // one built-in trip so the page never looks empty
   const builtin = [
-    {
+    normalizeTrip({
       id: "trip-1",
       title: "Vijayawada • Sunsets & rooftops",
       subtitle: "9 days • romance",
       dates: "Nov 4 – Nov 12",
-      price: 38800,
+      estimatedCost: 38800,
       image: img1,
-      source: "India",
+      destination: "India",
       fav: false,
       days: [
         { day: 1, title: "Arrival & River Walk" },
@@ -78,7 +125,7 @@ export default function Trips() {
         { day: 3, title: "Old Town Cafés" },
       ],
       tags: ["romance", "budget", "flexible"],
-    },
+    }),
   ];
 
   const [query, setQuery] = useState("");
@@ -86,25 +133,30 @@ export default function Trips() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [trips, setTrips] = useState([]);
 
+  // load from backend and merge with builtin
   useEffect(() => {
     fetch("http://localhost:8083/trip/all")
       .then((res) => res.json())
       .then((data) => {
-        const safeData = Array.isArray(data)
-          ? data.map((t) => ({
-              ...t,
-              days: Array.isArray(t.days) ? t.days : [],
-              tags: Array.isArray(t.tags) ? t.tags : [],
-            }))
-          : [];
-        setTrips([...safeData, ...builtin]);
+        const safe = Array.isArray(data) ? data.map(normalizeTrip) : [];
+        // backend first, then builtin:
+        setTrips([...safe, ...builtin]);
       })
-      .catch((err) => console.error("Error loading trips:", err));
+      .catch((err) => {
+        console.error("Error loading trips:", err);
+        setTrips([...builtin]);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? trips.filter((t) => (t.title + " " + (t.subtitle || "")).toLowerCase().includes(q)) : trips;
+    if (!q) return trips;
+    return trips.filter((t) =>
+      (t.title + " " + (t.subtitle || "") + " " + (t.source || ""))
+        .toLowerCase()
+        .includes(q)
+    );
   }, [trips, query]);
 
   const stats = useMemo(() => {
@@ -124,10 +176,14 @@ export default function Trips() {
     return { totalTrips, countries: countries.size, totalDays };
   }, [filtered]);
 
-  const toggleFav = (id) => setTrips((p) => p.map((t) => (t.id === id ? { ...t, fav: !t.fav } : t)));
+  // actions
+  const toggleFav = (id) =>
+    setTrips((p) => p.map((t) => (t.id === id ? { ...t, fav: !t.fav } : t)));
 
   const exportItinerary = (trip) => {
-    const blob = new Blob([JSON.stringify(trip, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(trip, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -142,39 +198,37 @@ export default function Trips() {
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + days);
     const fmt = (d) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: trip.title || "Trip",
+      details: trip.subtitle || "",
+      location: trip.source || "",
+      dates: `${fmt(startDate)}/${fmt(endDate)}`,
+    });
     window.open(
-      `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${trip.title}&details=${trip.subtitle}&location=${trip.source}&dates=${fmt(
-        startDate
-      )}/${fmt(endDate)}`,
-      "_blank"
+      `https://calendar.google.com/calendar/render?${params.toString()}`,
+      "_blank",
+      "noopener,noreferrer"
     );
   };
 
   const renameTrip = (id) =>
-    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, title: generateCoolName(t.title) } : t)));
+    setTrips((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, title: generateCoolName(t.title) } : t))
+    );
 
+  // called by TripBuilder after POST /trip/create
+  // trip may already be the saved backend object; normalize for UI
   const handleCreateTrip = (trip) => {
-    const safeDays = Array.isArray(trip.days) ? trip.days : [];
-    const formatted = {
-      id: trip.id || `trip-${Date.now()}`,
-      title: trip.title,
-      subtitle: `${safeDays.length} days • ${trip.tripType || "trip"}`,
-      dates: trip.dateRange,
-      price: Number(trip.estimatedCost || 0),
-      image: [img1, img2, img3][Math.floor(Math.random() * 3)],
-      fav: false,
-      days: safeDays.map((d, i) => ({ day: i + 1, title: d })),
-      tags: Array.isArray(trip.tags) ? trip.tags : [],
-      source: trip.destination || "",
-    };
-
+    const formatted = normalizeTrip(trip);
     setTrips((p) => [formatted, ...p]);
     setBuilderOpen(false);
-    navigate("/trips"); // ✅ redirect after saving
+    // keep user on /trips view
   };
 
   return (
     <div className="trips-root">
+      {/* Hero */}
       <header className="trips-hero container">
         <div className="hero-heading">
           <h1>🌍 Your Travel Library</h1>
@@ -189,15 +243,38 @@ export default function Trips() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="hero-buttons">
-            <button className="btn-ghost" onClick={() => navigate("/")}>← Home</button>
-            <button className="btn-minimal" onClick={() => setBuilderOpen(true)}><Plus size={16} /> Create Trip</button>
+            <button className="btn-ghost" onClick={() => navigate("/")}>
+              ← Home
+            </button>
+            <button className="btn-minimal" onClick={() => setBuilderOpen(true)}>
+              <Plus size={16} /> Create Trip
+            </button>
           </div>
         </div>
 
+        {/* Stats */}
         <div className="stats-bar">
-          <div className="stat-card"><span className="icon">📌</span><div><div className="stat-number">{stats.totalTrips}</div><div className="stat-label">Trips</div></div></div>
-          <div className="stat-card"><span className="icon">🌎</span><div><div className="stat-number">{stats.countries}</div><div className="stat-label">Countries</div></div></div>
-          <div className="stat-card"><span className="icon">🗓️</span><div><div className="stat-number">{stats.totalDays}</div><div className="stat-label">Total days</div></div></div>
+          <div className="stat-card">
+            <span className="icon">📌</span>
+            <div>
+              <div className="stat-number">{stats.totalTrips}</div>
+              <div className="stat-label">Trips</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <span className="icon">🌎</span>
+            <div>
+              <div className="stat-number">{stats.countries}</div>
+              <div className="stat-label">Countries</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <span className="icon">🗓️</span>
+            <div>
+              <div className="stat-number">{stats.totalDays}</div>
+              <div className="stat-label">Total days</div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -208,47 +285,97 @@ export default function Trips() {
             const coords = coordsFromText(`${t.title} ${t.source || ""}`);
 
             return (
-              <motion.article key={t.id} className="trip-card" whileHover={{ translateY: -4 }} transition={{ type: "spring", stiffness: 180, damping: 16 }}>
+              <motion.article
+                key={t.id}
+                className="trip-card"
+                whileHover={{ translateY: -4 }}
+                transition={{ type: "spring", stiffness: 180, damping: 16 }}
+              >
                 <div className="card-media">
-                  <img src={t.image} alt={t.title} className="card-img" />
+                  <img
+                    src={t.image || getRandomImage(t.title)}
+                    alt={t.title}
+                    className="card-img"
+                    onError={(e) => {
+                      e.currentTarget.src = getRandomImage(t.title);
+                    }}
+                  />
                   <div className="title-overlay">
                     <h3 className="trip-title">{t.title}</h3>
-                    <div className="trip-sub">{t.dates} • {t.subtitle}</div>
+                    <div className="trip-sub">
+                      {t.dates} • {t.subtitle}
+                    </div>
                   </div>
                 </div>
 
                 <div className="card-body">
                   <div className="pill-row">
-                    <span className="chip chip-info"><CloudSun size={14} /> {meta.icon} {meta.temp}°C</span>
+                    <span className="chip chip-info">
+                      <CloudSun size={14} /> {meta.icon} {meta.temp}°C
+                    </span>
                     <span className="chip">{meta.season}</span>
-                    {t.tags.slice(0, 2).map((g, i) => <span key={`${t.id}-tag-${i}`} className="chip chip-soft">{g}</span>)}
-                    <button className="chip chip-link" onClick={() => renameTrip(t.id)}><Wand2 size={14} /> Rename Trip</button>
+                    {(t.tags || []).slice(0, 2).map((g, i) => (
+                      <span key={`${t.id}-tag-${i}`} className="chip chip-soft">
+                        {g}
+                      </span>
+                    ))}
+                    <button className="chip chip-link" onClick={() => renameTrip(t.id)}>
+                      <Wand2 size={14} /> Rename Trip
+                    </button>
                   </div>
 
                   <div className="price-row">
                     <div className="price">{currencyINR(t.price)}</div>
                     <div className="actions">
-                      <button className="btn-outline ink" onClick={() => addToCalendar(t)}><Calendar size={14} /> Add to Calendar</button>
-                      <button className="btn-primary" onClick={() => navigate(`/book/${t.id}`, { state: { trip: t, source: "trips" } })}>✈️ Book Flight</button>
-                      <button className="btn-ghost" onClick={() => exportItinerary(t)}><Download size={14} /> Export</button>
-                      <button className={`fav ${t.fav ? "on" : ""}`} onClick={() => toggleFav(t.id)}><Heart size={16} /></button>
+                      <button className="btn-outline ink" onClick={() => addToCalendar(t)}>
+                        <Calendar size={14} /> Add to Calendar
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={() =>
+                          navigate(`/book/${t.id}`, { state: { trip: t, source: "trips" } })
+                        }
+                      >
+                        ✈️ Book Flight
+                      </button>
+                      <button className="btn-ghost" onClick={() => exportItinerary(t)}>
+                        <Download size={14} /> Export
+                      </button>
+                      <button
+                        className={`fav ${t.fav ? "on" : ""}`}
+                        onClick={() => toggleFav(t.id)}
+                        aria-label="Save to favorites"
+                      >
+                        <Heart size={16} />
+                      </button>
                     </div>
                   </div>
 
                   <div className="itinerary-mini">
-                    {t.days.slice(0, 3).map((d) => (
-                      <div key={`${t.id}-day-${d.day}`} className="mini-day"><strong>Day {d.day}</strong> — <span>{d.title}</span></div>
+                    {(t.days || []).slice(0, 3).map((d) => (
+                      <div key={`${t.id}-day-${d.day}`} className="mini-day">
+                        <strong>Day {d.day}</strong> — <span>{d.title}</span>
+                      </div>
                     ))}
-                    {t.days.length > 3 && (
-                      <button className="btn-link" onClick={() => setOpenItinerary(openItinerary === t.id ? null : t.id)}>
-                        {openItinerary === t.id ? "Hide itinerary" : `View ${t.days.length}-day itinerary`}
+                    {(t.days?.length || 0) > 3 && (
+                      <button
+                        className="btn-link"
+                        onClick={() =>
+                          setOpenItinerary(openItinerary === t.id ? null : t.id)
+                        }
+                      >
+                        {openItinerary === t.id
+                          ? "Hide itinerary"
+                          : `View ${t.days.length}-day itinerary`}
                       </button>
                     )}
                     {openItinerary === t.id && (
                       <div className="itinerary-full">
                         {t.days.map((d) => (
                           <div key={`${t.id}-full-${d.day}`} className="full-day">
-                            <div><strong>Day {d.day}</strong></div>
+                            <div>
+                              <strong>Day {d.day}</strong>
+                            </div>
                             <div className="muted">{d.title}</div>
                           </div>
                         ))}
@@ -257,7 +384,9 @@ export default function Trips() {
                   </div>
 
                   <div className="location-row">
-                    <span className="muted"><MapPin size={14} /> {coords[0].toFixed(2)}, {coords[1].toFixed(2)}</span>
+                    <span className="muted">
+                      <MapPin size={14} /> {coords[0].toFixed(2)}, {coords[1].toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </motion.article>
@@ -265,7 +394,9 @@ export default function Trips() {
           })}
 
           {filtered.length === 0 && (
-            <div className="empty-state">No trips match your search. Try “Beach”, “Trek”, “Goa”…</div>
+            <div className="empty-state">
+              No trips match your search. Try “Beach”, “Trek”, “Goa”…
+            </div>
           )}
         </div>
 
@@ -274,7 +405,9 @@ export default function Trips() {
             <h4>Map & Live Pins</h4>
             <div className="map-panel">
               <MapContainer
-                whenCreated={(m) => { mapRef.current = m; }}
+                whenCreated={(m) => {
+                  mapRef.current = m;
+                }}
                 center={[20.6, 78.96]}
                 zoom={4}
                 style={{ height: "260px", width: "100%" }}
@@ -290,8 +423,10 @@ export default function Trips() {
                     <Marker key={`marker-${t.id}`} position={c}>
                       <Popup>
                         <strong>{t.title}</strong>
-                        <div>{t.subtitle}</div>
-                        <div style={{ fontWeight: 700, marginTop: 6 }}>{currencyINR(t.price)}</div>
+                        <div className="tiny">{t.subtitle}</div>
+                        <div style={{ marginTop: 6, fontWeight: 800 }}>
+                          {currencyINR(t.price)}
+                        </div>
                       </Popup>
                     </Marker>
                   );
@@ -311,6 +446,7 @@ export default function Trips() {
         </aside>
       </div>
 
+      {/* FULL-SCREEN BUILDER */}
       {builderOpen && (
         <TripBuilder onClose={() => setBuilderOpen(false)} onCreate={handleCreateTrip} />
       )}
