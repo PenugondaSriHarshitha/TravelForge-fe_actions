@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import "./Footer.css";
+import { Link } from "react-router-dom";
 
 /**
  * Footer component with two-line popup message and share actions.
@@ -239,16 +240,50 @@ export default function Footer({
 
           <div className="footer-meta">
             <div className="socials">
-              <a href="#fb" className="social glass" aria-label="Facebook">🌐</a>
-              <a href="#tw" className="social glass" aria-label="Twitter">🐦</a>
-              <a href="#yt" className="social glass" aria-label="YouTube">▶</a>
-              <a href="#ig" className="social glass" aria-label="Instagram">📸</a>
-            </div>
-            <div className="legal">
-              <span>© {new Date().getFullYear()} TravelForge</span>
-              <a href="#privacy">Privacy</a>
-              <a href="#terms">Terms</a>
-            </div>
+  <a
+    href="https://www.facebook.com/share/1Af44e3wnZ/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="Facebook"
+  >
+    🌐
+  </a>
+  <a
+    href="https://twitter.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="Twitter"
+  >
+    🐦
+  </a>
+  <a
+    href="https://youtube.com/@travelforge?si=UmkXSnMwAFfO6yDG"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="YouTube"
+  >
+    ▶
+  </a>
+  <a
+    href="https://www.instagram.com/travelforge_09?igsh=ODlsdHZzZDdod3Zx"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social glass"
+    aria-label="Instagram"
+  >
+    📸
+  </a>
+</div>
+
+           <div className="legal">
+  <span>© {new Date().getFullYear()} TravelForge</span>
+  <Link to="/privacy">Privacy</Link>
+  <Link to="/terms">Terms</Link>
+</div>
+
           </div>
         </div>
       </div>

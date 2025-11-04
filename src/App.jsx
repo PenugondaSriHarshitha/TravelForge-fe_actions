@@ -19,6 +19,11 @@ import CityAndSea from "./components/CityAndSea";
 import SubscribeModal from "./components/SubscribeModal";
 import MoodTripPlanner from "./components/MoodTripPlanner";
 import Saved from "./components/Saved";
+import Privacy from "./components/Privacy";
+import Terms from "./components/Terms";
+
+
+
 export default function App() {
   const [showSignup, setShowSignup] = useState(false);
 
@@ -47,6 +52,8 @@ export default function App() {
         <Route path="/subscribe" element={<SubscribeModal open={true} onClose={() => window.history.back()} />} />
            <Route path="/mood-trip" element={<MoodTripPlanner />} />
            <Route path="/saved" element={<Saved />} />
+           <Route path="/privacy" element={<Privacy />} />
+<Route path="/terms" element={<Terms />} />
       </Routes>
 
 
