@@ -480,9 +480,17 @@ export default function Home() {
                             </div>
                             <p className="pro-hint">{p.hint}</p>
                             <div className="pro-cta-row">
-                              <button className="pro-open" onClick={(e) => { e.stopPropagation(); handleLockedAccess(path); }}>
-                                {isLocked ? "Unlock" : "Open"}
-                              </button>
+<button
+  className="pro-open"
+  onClick={(e) => {
+    e.stopPropagation();
+    if (isLocked) return handleLockedAccess(path);
+    navigate(path); // ✅ open directly for unlocked features
+  }}
+>
+  {isLocked ? "Unlock" : "Open"}
+</button>
+
                               <button className="pro-save" onClick={(e) => { e.stopPropagation(); navigate("/saved"); }} aria-label={`Save ${p.title}`}>
                                 ♥
                               </button>
