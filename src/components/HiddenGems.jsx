@@ -1,4 +1,5 @@
-// src/components/HiddenGems.jsx
+import { useNavigate } from "react-router-dom";
+
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Share2, Heart, X, ArrowLeftCircle, ArrowRightCircle, ZoomIn, Download } from "lucide-react";
@@ -142,6 +143,8 @@ const GEMS = [
 const buildShareText = (g) => `${g.title} — ${g.subtitle}\n${g.desc}\n\nCheck it out: ${window.location.origin}/gems/${g.id}`;
 
 export default function HiddenGems() {
+  const navigate = useNavigate();
+
   const [selected, setSelected] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareGem, setShareGem] = useState(null);
@@ -366,26 +369,27 @@ export default function HiddenGems() {
     <div className="hg-root">
       <div className="container">
         {/* Back button top-left */}
-        <button
-          className="back-btn-hero"
-          onClick={() => window.history.back()}
-          aria-label="Go back"
-          style={{
-            position: "absolute",
-            top: 28,
-            left: 28,
-            zIndex: 1500,
-            background: "rgba(255,255,255,0.12)",
-            border: "none",
-            padding: "8px 12px",
-            borderRadius: 10,
-            color: "#fff",
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          ← Back
-        </button>
+   <button
+  className="back-btn-hero"
+  onClick={() => navigate("/")}
+  aria-label="Go home"
+  style={{
+    position: "absolute",
+    top: 28,
+    left: 28,
+    zIndex: 1500,
+    background: "rgba(255,255,255,0.12)",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 10,
+    color: "#fff",
+    fontWeight: 800,
+    cursor: "pointer",
+  }}
+>
+  ← Home
+</button>
+
 
         <section className="hg-hero">
           <div className="hg-left">

@@ -123,7 +123,7 @@ const handleDelete = (id) => {
       {/* centered container */}
       <div className="cs-page-center">
         <div className="page-back">
-          <button className="back-btn" onClick={() => navigate(-1)}>← Back</button>
+          <button className="back-btn" onClick={() => navigate("/")}>←HOME</button>
         </div>
 
         <header className="cs-hero">

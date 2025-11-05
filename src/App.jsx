@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Home from "./components/Home";
 import Results from "./components/Results";
@@ -12,7 +12,7 @@ import HiddenGems from "./components/HiddenGems";
 import Trips from "./components/Trips";
 import BudgetPlanner from "./components/BudgetPlanner";
 import LocalGuides from "./components/LocalGuides";
-import AmazingAdventure from "./components/AmazingAdventure"; // Subbu's story
+import AmazingAdventure from "./components/AmazingAdventure";
 import SunsetEscapes from "./components/SunsetEscapes";
 import Checklist from "./components/Checklist";
 import CityAndSea from "./components/CityAndSea";
@@ -22,7 +22,15 @@ import Saved from "./components/Saved";
 import Privacy from "./components/Privacy";
 import Terms from "./components/Terms";
 
-
+// ✅ Correct ProtectedRoute using "currentUser"
+function ProtectedRoute({ children }) {
+  const user = JSON.parse(localStorage.getItem("currentUser"));
+  if (!user) {
+    alert("Please login or signup to continue.");
+    return <Navigate to="/signup" replace />;
+  }
+  return children;
+}
 
 export default function App() {
   const [showSignup, setShowSignup] = useState(false);
@@ -45,17 +53,26 @@ export default function App() {
         <Route path="/hidden-gems" element={<HiddenGems />} />
         <Route path="/budget" element={<BudgetPlanner />} />
         <Route path="/local-guides" element={<LocalGuides />} />
- <Route path="/amazing-adventure" element={<AmazingAdventure />} />
+        <Route path="/amazing-adventure" element={<AmazingAdventure />} />
         <Route path="/sunset-escapes" element={<SunsetEscapes />} />
         <Route path="/checklist" element={<Checklist />} />
-        <Route path="/city-and-sea" element={<CityAndSea />} /> 
-        <Route path="/subscribe" element={<SubscribeModal open={true} onClose={() => window.history.back()} />} />
-           <Route path="/mood-trip" element={<MoodTripPlanner />} />
-           <Route path="/saved" element={<Saved />} />
-           <Route path="/privacy" element={<Privacy />} />
-<Route path="/terms" element={<Terms />} />
-      </Routes>
+        <Route path="/city-and-sea" element={<CityAndSea />} />
 
+        {/* ✅ Protected FULL PAGE Subscribe Route */}
+        <Route
+          path="/subscribe"
+          element={
+            <ProtectedRoute>
+              <SubscribeModal />   {/* ✅ No modal props, loads as full page */}
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/mood-trip" element={<MoodTripPlanner />} />
+        <Route path="/saved" element={<Saved />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+      </Routes>
 
       {/* Floating signup button */}
       <button

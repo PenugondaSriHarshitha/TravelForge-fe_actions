@@ -149,8 +149,8 @@ const handleDelete = (id) =>
 
       {/* Top-left Back button */}
       <div className="page-back" style={{ position: "fixed", left: 18, top: 18, zIndex: 80 }}>
-        <button className="btn-light" onClick={() => navigate(-1)} aria-label="Go back">
-          ← Back
+        <button className="btn-light" onClick={() => navigate("/")} aria-label="Go back">
+          ← HOME
         </button>
       </div>
 
@@ -291,8 +291,8 @@ const handleDelete = (id) =>
             </button>
 
             {/* secondary back button in CTA */}
-            <button className="btn-light" onClick={() => navigate(-1)}>
-              ← Back
+            <button className="btn-light" onClick={() => navigate("/")}>
+              ← HOME
             </button>
           </div>
         </section>

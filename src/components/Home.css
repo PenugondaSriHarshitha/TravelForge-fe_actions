@@ -1201,3 +1201,103 @@ html, body, #root {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px rgba(0,0,0,0.12);
 }
+/* --- lock overlay for gated content --- */
+.locked-card {
+  position: relative;
+  filter: saturate(0.6) brightness(0.92);
+}
+.locked-card .pro-media-img,
+.locked-card .story-img {
+  filter: blur(1px);
+}
+
+.lock-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.42));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.lock-pill {
+  backdrop-filter: blur(4px);
+  background: rgba(255,255,255,0.9);
+  color: #003a2f;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.12);
+}
+
+/* tiny subscribed badge in navbar */
+.sub-badge {
+  letter-spacing: .2px;
+}
+.access-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+.access-popup.glass {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(16px) saturate(180%);
+  border-radius: 18px;
+  padding: 26px 30px;
+  width: 340px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  text-align: center;
+  animation: fadeIn 0.2s;
+}
+
+.popup-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: #003325;
+}
+
+.popup-text {
+  font-size: 0.95rem;
+  margin-bottom: 18px;
+  color: #003325;
+}
+
+.popup-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.access-popup .btn-primary {
+  padding: 10px 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: linear-gradient(90deg,#38ef7d,#ffb86b);
+  color: #00251f;
+  border: none;
+  cursor: pointer;
+}
+
+.access-popup .btn-ghost {
+  border: none;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(8px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #003325;
+}

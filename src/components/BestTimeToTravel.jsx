@@ -563,16 +563,17 @@ export default function BestTimeToTravel() {
           <div className="bt-search glass-card">
             <form className="search-row" onSubmit={handleSearchAndScroll}>
               {/* Back button stays inside the search row */}
-              <button
-                type="button"
-                className="back-btn"
-                onClick={() => window.history.back()}
-                title="Go back"
-                aria-label="Back"
-                style={{ marginRight: 12 }}
-              >
-                ← Back
-              </button>
+             <button
+  type="button"
+  className="back-btn"
+  onClick={() => navigate("/")}
+  title="Go back"
+  aria-label="Back"
+  style={{ marginRight: 12 }}
+>
+  ← Back
+</button>
+
 
               {/* From */}
               <div className="input-group fancy-input" style={{ minWidth: 260 }}>
