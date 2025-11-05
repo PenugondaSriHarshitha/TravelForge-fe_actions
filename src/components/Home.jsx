@@ -93,19 +93,20 @@ export default function Home() {
 
   // ✅ SINGLE LOGIC FOR LOCKED ACCESS (with plan in state)
   const handleLockedAccess = (path) => {
-    if (!currentUser) {
-      // remember intent for post-login redirect to /subscribe
-      try { sessionStorage.setItem("LOCK_INTENT_PATH", path); } catch {}
-      setSignupOpen(true);
-      return;
-    }
-    if (!isSubscribed) {
-      navigate("/subscribe", { state: { email: currentUser.email, from: path, plan: "premium" } });
-      return;
-    }
-    navigate("/subscribe")
+  if (!currentUser) {
+    try { sessionStorage.setItem("LOCK_INTENT_PATH", path); } catch {}
+    setSignupOpen(true);
+    return;
+  }
 
-  };
+  if (!isSubscribed) {
+    navigate("/subscribe", { state: { email: currentUser.email, from: path, plan: "premium" } });
+    return;
+  }
+
+  // ✅ Already logged in + subscribed -> open requested page
+  navigate(path);
+};
 
   const STORAGE_KEY = "travel_home_top_deals_v1";
   const defaultInitialDeals = [
