@@ -53,8 +53,26 @@ export default function Footer({
   const [newsletterError, setNewsletterError] = useState("");
   // popup.message can be string or array (array -> multiple lines)
   const [popup, setPopup] = useState({ open: false, title: "", message: null, linkId: null });
+const redirectLinks = {
+  // INTERNAL pages
+  about: "/about",
+  help: "/help",
 
-  // Two-line messages (every mapping uses an array of 2 strings)
+  // EXTERNAL
+  blog: "https://www.skyscanner.com/news",
+  how: "https://www.kayak.com/how-it-works",
+  press: "https://www.kayak.com/press",
+  affiliates: "https://www.booking.com/affiliate-program",
+  partners: "https://partners.skyscanner.net",
+  advertise: "https://www.kayak.com/advertising",
+  airline: "https://www.kayak.com/airlines",
+  fees: "https://www.skyscanner.com/airline-fees",
+  tips: "https://www.google.com/travel/flights",
+  security: "https://www.iata.org/en/policy/security",
+};
+
+
+
   const messages = {
     about: [
       "Learn more about our company, mission and values.",
@@ -316,13 +334,23 @@ export default function Footer({
                 </>
               )}
 
-              <div className="popup-actions">
-                <button className="tf-btn" onClick={handleCopyLink} title="Copy link">Copy link</button>
-                <button className="tf-btn" onClick={handleShareEmail} title="Share by email">Share via Email</button>
-                <button className="tf-btn" onClick={handleShareTwitter} title="Share on Twitter">Share on Twitter</button>
+             <div className="popup-actions">
+  <button className="tf-btn" onClick={handleCopyLink}>Copy link</button>
+  <button className="tf-btn" onClick={handleShareEmail}>Share via Email</button>
+  <button className="tf-btn" onClick={handleShareTwitter}>Share on Twitter</button>
 
-                <button className="tf-btn tf-primary" onClick={closePopup} style={{ marginLeft: 8 }}>OK</button>
-              </div>
+  {redirectLinks[popup.linkId] && (
+    <button
+      className="tf-btn tf-outline"
+      onClick={() => window.open(redirectLinks[popup.linkId], "_blank")}
+    >
+      Learn More →
+    </button>
+  )}
+
+  <button className="tf-btn tf-primary" onClick={closePopup}>OK</button>
+</div>
+
             </div>
           </motion.div>
         </div>

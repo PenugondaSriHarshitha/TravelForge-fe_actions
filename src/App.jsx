@@ -21,6 +21,8 @@ import MoodTripPlanner from "./components/MoodTripPlanner";
 import Saved from "./components/Saved";
 import Privacy from "./components/Privacy";
 import Terms from "./components/Terms";
+import Help from "./pages/Help";
+import About from "./pages/About";
 
 // ✅ Correct ProtectedRoute using "currentUser"
 function ProtectedRoute({ children }) {
@@ -57,6 +59,8 @@ export default function App() {
         <Route path="/sunset-escapes" element={<SunsetEscapes />} />
         <Route path="/checklist" element={<Checklist />} />
         <Route path="/city-and-sea" element={<CityAndSea />} />
+        <Route path="/about" element={<About />} />
+  <Route path="/help" element={<Help />} />
 
         {/* ✅ Protected FULL PAGE Subscribe Route */}
         <Route
