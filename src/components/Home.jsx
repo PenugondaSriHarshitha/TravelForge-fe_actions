@@ -264,11 +264,11 @@ export default function Home() {
   };
 
   const handleLogout = () => {
-    try { localStorage.removeItem("currentUser"); } catch {}
-    setCurrentUser(null);
-    setSignupOpen(true);
-    try { navigate("/signup"); } catch {}
-  };
+  try { localStorage.removeItem("currentUser"); } catch {}
+  setCurrentUser(null);
+  setSignupOpen(false); // ✅ close signup modal if open
+  navigate("/");        // ✅ go to Home page
+};
 
   const goExplore = (item) => navigate(`/explore/${item.id}`, { state: { item } });
   const goBook = (item) => navigate(`/book/${item.id}`, { state: { item } });
