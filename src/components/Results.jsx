@@ -507,23 +507,50 @@ export default function Results() {
      BOOKING ACTION
      =========================================================== */
   function goToBooking(id, item) {
-    const el = document.querySelector(`article[data-id="${id}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("flash-highlight");
-      setTimeout(() => el.classList.remove("flash-highlight"), 1400);
-    }
+  if (item?.kind === "packages") {
+  // 🧭 Enrich sample packages (like P006) so ViewPackage never blanks
+  const enriched = {
+    ...item,
+    id: item.id || `pkg-${Math.floor(Math.random() * 9999)}`,
+    title: item.title || `${item.city} – Dream Getaway`,
+    nights: item.nights || 4,
+    price: item.price || "₹45,000",
+    rating: item.rating || 4.6,
+    img: item.img || "https://source.unsplash.com/featured/?travel,beach",
+    tags: item.tags || ["adventure", "romantic", "friends"],
+    highlights: [
+      "Guided city tour 🏙️",
+      "Luxury hotel stay 🏨",
+      "Local cuisine experience 🍜",
+      "Cultural show 🎭",
+    ],
+    offer: item.offer || "Limited Time Offer – 20% Off!",
+    weather: item.weather || "26°C 🌤️",
+  };
 
-    setBookingItem(item || null);
+  navigate(`/view/${enriched.id}`, { state: { item: enriched } });
+  return;
+}
 
-    if (item?.kind === "flights") setBookingType("flight");
-    else if (item?.kind === "stays") setBookingType("resort");
-    else if (item?.kind === "cars") setBookingType("car");
-    else if (item?.kind === "packages") setBookingType("package");
-    else setBookingType("stay");
 
-    setBookingOpen(true);
+  // Default behavior for other kinds
+  const el = document.querySelector(`article[data-id="${id}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("flash-highlight");
+    setTimeout(() => el.classList.remove("flash-highlight"), 1400);
   }
+
+  setBookingItem(item || null);
+
+  if (item?.kind === "flights") setBookingType("flight");
+  else if (item?.kind === "stays") setBookingType("resort");
+  else if (item?.kind === "cars") setBookingType("car");
+  else setBookingType("stay");
+
+  setBookingOpen(true);
+}
+
 
   async function handleBookingConfirmed(data) {
     try {

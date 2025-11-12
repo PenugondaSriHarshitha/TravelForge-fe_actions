@@ -343,21 +343,30 @@ export default function Home() {
                   <p className="hero-sub">Every journey begins with a spark of wonder.</p>
 
                   <div className="tabs" role="tablist" aria-label="Booking tabs">
-                    {["flights", "stays", "cars", "packages"].map((t) => (
-                      <button
-                        key={t}
-                        role="tab"
-                        aria-selected={tab === t}
-                        className={`tab ${tab === t ? "active" : ""}`}
-                        onClick={() => setTab(t)}
-                      >
-                        {t === "flights" && "✈️ Flights"}
-                        {t === "stays" && "🏝 Stays"}
-                        {t === "cars" && "🚙 Cars"}
-                        {t === "packages" && "🌍 Packages"}
-                      </button>
-                    ))}
-                  </div>
+  {["flights", "stays", "cars", "packages"].map((t) => (
+    <button
+      key={t}
+      role="tab"
+      aria-selected={tab === t}
+      className={`tab ${tab === t ? "active" : ""}`}
+      onClick={() => {
+        if (t === "packages") {
+          // ✅ Navigate to Packages page
+          navigate("/packages");
+        } else {
+          // ✅ Keep same behavior for other tabs
+          setTab(t);
+        }
+      }}
+    >
+      {t === "flights" && "✈️ Flights"}
+      {t === "stays" && "🏝 Stays"}
+      {t === "cars" && "🚙 Cars"}
+      {t === "packages" && "🌍 Packages"}
+    </button>
+  ))}
+</div>
+
 
                   <form className="search-form" onSubmit={simulateSearch}>
                     <div className="search-row">
