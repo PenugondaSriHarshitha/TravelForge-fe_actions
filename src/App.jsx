@@ -32,6 +32,9 @@ import Help from "./pages/Help";
 import About from "./pages/About";
 import Packages from "./components/Packages";
 import ViewPackage from "./components/ViewPackage";
+import Dream from "./components/Dream";
+import SmartItinerary from "./components/SmartItinerary";
+
 
 // ✅ Protected Route
 function ProtectedRoute({ children }) {
@@ -137,6 +140,10 @@ export default function App() {
           <Route path="/saved" element={<Saved />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/dream" element={<Dream />} />
+          <Route path="/smart-itinerary" element={<SmartItinerary />} />
+
+
         </Routes>
       </AnimatePresence>
 

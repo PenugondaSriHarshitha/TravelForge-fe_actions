@@ -207,3 +207,15 @@
   0%, 100% { box-shadow: 0 0 12px rgba(255,184,107,0.3); }
   50% { box-shadow: 0 0 20px rgba(255,209,102,0.6); }
 }
+/* Fix input text color inside Support modal */
+.support-modal input,
+.support-modal textarea {
+  color: #000 !important;
+  background: #ffffff !important;
+}
+
+/* Fix placeholder color */
+.support-modal input::placeholder,
+.support-modal textarea::placeholder {
+  color: #555 !important;
+}

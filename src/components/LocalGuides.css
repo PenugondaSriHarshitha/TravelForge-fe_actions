@@ -155,3 +155,77 @@
 .lg-controls * {
   color: #000 !important;
 }
+/* === FIX INVISIBLE TEXT IN DARK MODALS === */
+.lg-modal,
+.lg-modal *,
+.nav-slideover,
+.nav-slideover *,
+.toast,
+.toast *,
+form .lg-input,
+form .lg-input *,
+.pending-card,
+.pending-card * {
+  color: #e8fff7 !important;           /* light mint text */
+}
+
+/* Inputs inside slideovers */
+.lg-input {
+  background: #0c1f22 !important;
+  color: #e8fff7 !important;
+  border: 1px solid #2e5250 !important;
+}
+
+/* Placeholder color */
+.lg-input::placeholder {
+  color: #9bbfbb !important;
+}
+
+/* Textarea */
+.lg-input textarea,
+textarea.lg-input {
+  background: #0c1f22 !important;
+  color: #e8fff7 !important;
+}
+
+/* Modal headings */
+.lg-modal h1,
+.lg-modal h2,
+.lg-modal h3,
+.lg-modal strong {
+  color: #ffffff !important;
+}
+
+/* Field error text */
+.field-error {
+  color: #ff8080 !important;
+}
+
+/* Buttons inside modals */
+.lg-modal .lg-button,
+.nav-slideover .lg-button,
+.lg-modal .btn-open,
+.nav-slideover .btn-open,
+.lg-modal .btn-ghost,
+.nav-slideover .btn-ghost {
+  color: #e8fff7 !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+
+/* Small muted text in modals */
+.lg-modal .muted,
+.nav-slideover .muted {
+  color: #9eb6b0 !important;
+}
+/* Fix overlapping actions */
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;      /* IMPORTANT */
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.card-actions button {
+  flex: 1 1 45%;        /* allows two per row */
+  min-width: 90px;      /* avoids shrinking too much */
+}

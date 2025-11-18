@@ -719,3 +719,18 @@ button.sort-btn,
 .tab-btn * {
   color: #000 !important;
 }
+
+/* === FIX BOOKING CARD INPUT VISIBILITY === */
+.booking-card input {
+  background: #ffffff !important;   /* white background */
+  color: #000000 !important;        /* visible black text */
+  border: 1px solid #888 !important;
+  padding: 8px 10px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+/* Placeholder fix */
+.booking-card input::placeholder {
+  color: #555 !important;
+}

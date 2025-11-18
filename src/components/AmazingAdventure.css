@@ -494,3 +494,16 @@
   color: red;
   transform: scale(1.2);
 }
+/* --- FIX INVISIBLE COMMENT TEXT --- */
+.comment-form input {
+  background: #ffffff !important;
+  color: #000000 !important;           /* visible text */
+  border: 1px solid #ccc !important;
+}
+
+.comment-form input::placeholder {
+  color: #666 !important;             /* visible placeholder */
+}
+.comment-text {
+  color: #222 !important;
+}

@@ -12,6 +12,8 @@ import {
   Circle,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import confetti from "canvas-confetti";
+
 import L from "leaflet";
 import "./Results.css";
 import Booking from "./Booking";
@@ -1401,9 +1403,44 @@ export default function Results() {
                     <div style={{ marginTop: 8 }}>
                       <button
                         className="btn-cta"
-                        onClick={() => setQuizOpen(true)}
+                       onClick={() => {
+  // SCREEN SHAKE
+  document.body.style.animation = "shakeCrazy 0.4s";
+  setTimeout(() => (document.body.style.animation = ""), 400);
+
+  // CONFETTI
+  const duration = 1000;
+  const end = Date.now() + duration;
+  (function frame() {
+    confetti({
+      particleCount: 12,
+      spread: 70,
+      startVelocity: 25,
+      origin: {
+        x: Math.random(),
+        y: Math.random() - 0.2,
+      },
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+
+  // OPEN TRIVIA
+  setQuizOpen(true);
+}}
+
                       >
-                        Take trivia
+                       
+                        {overlayMode === "fun" && (
+  <div style={{ marginTop: 8 }}>
+    <button
+      className="btn-cta"
+      onClick={() => setQuizOpen(true)}
+    >
+      Take trivia
+    </button>
+  </div>
+)}
+
                       </button>
                     </div>
                   )}

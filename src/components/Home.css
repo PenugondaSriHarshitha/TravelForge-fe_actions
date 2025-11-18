@@ -1301,3 +1301,18 @@ html, body, #root {
   cursor: pointer;
   color: #003325;
 }
+/* FIX: Prevent Subscribe button from overlapping the email input */
+.newsletter-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;           /* <--- SUPER IMPORTANT */
+}
+
+.newsletter-form input {
+  flex: 1;                   /* <--- makes input take available width */
+  min-width: 200px;          /* prevents shrinking too small */
+}
+
+.newsletter-form button {
+  white-space: nowrap;       /* keeps "Subscribe" on one line */
+}
