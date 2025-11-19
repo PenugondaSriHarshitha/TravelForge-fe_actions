@@ -8,7 +8,9 @@ import {
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
-// 🧩 Component Imports
+import Navbar from "./components/Navbar";  // <-- ADD THIS
+
+// Component Imports
 import Home from "./components/Home";
 import Results from "./components/Results";
 import Signup from "./components/Signup";
@@ -35,18 +37,13 @@ import ViewPackage from "./components/ViewPackage";
 import Dream from "./components/Dream";
 import SmartItinerary from "./components/SmartItinerary";
 
-
-// ✅ Protected Route
+// PROTECTED ROUTE
 function ProtectedRoute({ children }) {
   const user = JSON.parse(localStorage.getItem("currentUser"));
-  if (!user) {
-    alert("Please login or signup to continue.");
-    return <Navigate to="/signup" replace />;
-  }
+  if (!user) return <Navigate to="/signup" replace />;
   return children;
 }
 
-// ✨ Page transition variants (fade + slide)
 const transitionVariant = {
   initial: { opacity: 0, y: 40 },
   animate: { opacity: 1, y: 0 },
@@ -54,28 +51,17 @@ const transitionVariant = {
   transition: { duration: 0.6, ease: "easeInOut" },
 };
 
-// ================================
-// 🎬 MAIN APP COMPONENT
-// ================================
 export default function App() {
   const [showSignup, setShowSignup] = useState(false);
   const location = useLocation();
 
-  const handleSignupSubmit = (data) => {
-    console.log("Signup data:", data);
-    alert(`Thanks, ${data.name || data.email}! (signup simulated)`);
-  };
-
   return (
     <>
-      {/* ✨ AnimatePresence handles smooth transitions */}
+      {/* 👇 NAVBAR MUST BE HERE */}
+      <Navbar />
+
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          {/* ============================
-              MAIN ROUTES WITH ANIMATION
-          ============================ */}
-
-          {/* 🏠 HOME */}
           <Route
             path="/"
             element={
@@ -85,17 +71,8 @@ export default function App() {
             }
           />
 
-          {/* ✈️ RESULTS */}
-          <Route
-            path="/results"
-            element={
-              <motion.div {...transitionVariant}>
-                <Results />
-              </motion.div>
-            }
-          />
+          <Route path="/results" element={<motion.div {...transitionVariant}><Results /></motion.div>} />
 
-          {/* 🌍 PACKAGES (CINEMATIC ENTRANCE) */}
           <Route
             path="/packages"
             element={
@@ -103,16 +80,12 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.7, ease: "easeInOut" }}
               >
                 <Packages />
               </motion.div>
             }
           />
 
-          {/* ============================
-              OTHER ROUTES (normal)
-          ============================ */}
           <Route path="/explore/:id" element={<Explore />} />
           <Route path="/book/:id" element={<Booking />} />
           <Route path="/best-time" element={<BestTimeToTravel />} />
@@ -126,8 +99,8 @@ export default function App() {
           <Route path="/city-and-sea" element={<CityAndSea />} />
           <Route path="/about" element={<About />} />
           <Route path="/view/:id" element={<ViewPackage />} />
-
           <Route path="/help" element={<Help />} />
+
           <Route
             path="/subscribe"
             element={
@@ -136,22 +109,18 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
           <Route path="/mood-trip" element={<MoodTripPlanner />} />
           <Route path="/saved" element={<Saved />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/dream" element={<Dream />} />
           <Route path="/smart-itinerary" element={<SmartItinerary />} />
-
-
         </Routes>
       </AnimatePresence>
 
-      {/* ============================
-          FLOATING SIGNUP BUTTON
-      ============================ */}
+      {/* Floating Signup Button */}
       <button
-        aria-label="Open sign up"
         onClick={() => setShowSignup(true)}
         style={{
           position: "fixed",
@@ -159,29 +128,22 @@ export default function App() {
           bottom: 20,
           padding: "12px 16px",
           borderRadius: 12,
-          border: "none",
           background: "linear-gradient(90deg,#40E0D0,#FFA62B)",
-          color: "#00251f",
-          fontWeight: 800,
+          border: "none",
           cursor: "pointer",
-          boxShadow: "0 10px 30px rgba(64,224,208,0.12)",
-          zIndex: 60,
+          zIndex: 100,
         }}
       >
         Sign Up
       </button>
 
-      {/* ============================
-          SIGNUP MODAL
-      ============================ */}
-      {typeof Signup === "function" ? (
+      {showSignup && (
         <Signup
           open={showSignup}
           onClose={() => setShowSignup(false)}
-          onSubmit={handleSignupSubmit}
           defaultMode="signup"
         />
-      ) : null}
+      )}
     </>
   );
 }
