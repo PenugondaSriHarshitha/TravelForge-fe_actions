@@ -8,7 +8,6 @@ import {
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 
-import Navbar from "./components/Navbar";  // <-- ADD THIS
 
 // Component Imports
 import Home from "./components/Home";
