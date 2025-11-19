@@ -6,6 +6,7 @@ import { FiX, FiChevronLeft, FiCheck } from "react-icons/fi";
 import { FaGooglePay, FaCcMastercard, FaCcVisa, FaApple } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Booking.css";
+import { API_BASE } from "../api/apiConfig";
 
 // images - put your images in src/images/
 import carImg from "../images/car.png";
@@ -15,7 +16,7 @@ import packageImg from "../images/package.png";
 import stayImg from "../images/stay.png";
 import defaultThumb from "../images/default-thumb.png";
 
-const BACKEND_BASE = "http://localhost:8084"; // backend base URL
+//const BACKEND_BASE = "http://localhost:8084"; // backend base URL
 
 const DEFAULT_CARD_EXAMPLES = [
   { id: "card_1", brand: "Visa", last4: "4242", name: "Bhavya C", expiry: "12/26" },
@@ -127,7 +128,7 @@ function SupportModal({ open, onClose, context = {} }) {
         context: `city=${context.city || ""} type=${context.type || ""}`
       };
 
-      const res = await fetch(`${BACKEND_BASE}/api/support`, {
+      const res = await fetch(`${API_BASE}/api/support`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -167,7 +168,7 @@ function SupportModal({ open, onClose, context = {} }) {
     };
 
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/support-chat`, {
+      const res = await fetch(`${API_BASE}/api/support-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -475,7 +476,7 @@ const wheelReward = location?.state?.reward || null;
 
       // POST to backend bookings endpoint (use full backend URL)
       try {
-        const res = await fetch(`${BACKEND_BASE}/api/bookings`, {
+        const res = await fetch(`${API_BASE}/api/bookings`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bookingPayload),

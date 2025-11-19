@@ -23,8 +23,9 @@ import MoodTripPlanner from "./MoodTripPlanner";
 import Footer from "./Footer";
 import "./Home.css";
 import SubscribeModal from "./SubscribeModal";
+import { API_BASE } from "../api/apiConfig";
 
-const API_BASE = "http://localhost:8084";
+//const API_BASE = "http://localhost:8084";
 
 // ---- small animation configs
 const pageVariants = {
@@ -86,7 +87,7 @@ async function saveItem(item) {
       savedAt: new Date().toISOString(),
     };
 
-    const res = await fetch("http://localhost:8084/api/saved", {
+    const res = await fetch(`${API_BASE}/api/saved`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

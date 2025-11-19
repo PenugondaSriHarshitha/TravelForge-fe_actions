@@ -3,8 +3,9 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./SubscribeModal.css";
 import { motion } from "framer-motion";
+import { API_BASE } from "../api/apiConfig";
 
-const API_BASE = "http://localhost:8084"; // Spring Boot backend
+//const API_BASE = "http://localhost:8084"; // Spring Boot backend
 
 export default function SubscribeModal() {
   const loc = useLocation();
@@ -79,7 +80,9 @@ export default function SubscribeModal() {
 
   async function postSubscription(payload) {
     try {
-      const res = await fetch(`${API_BASE}/api/subscribe`, {
+const res = await fetch(`${API_BASE}/api/subscribe`, {
+ 
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
