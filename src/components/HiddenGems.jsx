@@ -312,7 +312,7 @@ export default function HiddenGems() {
 
     setProcessingBooking(true);
     try {
-      const res = await fetch("http://localhost:8083/api/bookings", {
+      const res = await fetch("http://localhost:8084/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

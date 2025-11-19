@@ -24,7 +24,7 @@ import Footer from "./Footer";
 import "./Home.css";
 import SubscribeModal from "./SubscribeModal";
 
-const API_BASE = "http://localhost:8083";
+const API_BASE = "http://localhost:8084";
 
 // ---- small animation configs
 const pageVariants = {
@@ -86,7 +86,7 @@ async function saveItem(item) {
       savedAt: new Date().toISOString(),
     };
 
-    const res = await fetch("http://localhost:8083/api/saved", {
+    const res = await fetch("http://localhost:8084/api/saved", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

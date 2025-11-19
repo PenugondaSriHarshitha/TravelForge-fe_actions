@@ -15,7 +15,7 @@ import packageImg from "../images/package.png";
 import stayImg from "../images/stay.png";
 import defaultThumb from "../images/default-thumb.png";
 
-const BACKEND_BASE = "http://localhost:8083"; // backend base URL
+const BACKEND_BASE = "http://localhost:8084"; // backend base URL
 
 const DEFAULT_CARD_EXAMPLES = [
   { id: "card_1", brand: "Visa", last4: "4242", name: "Bhavya C", expiry: "12/26" },
@@ -492,7 +492,7 @@ const wheelReward = location?.state?.reward || null;
         }
       } catch (err) {
         console.warn("Failed to save booking to backend:", err);
-        alert("❌ Could not connect to backend. Make sure Spring Boot is running on port 8083.");
+        alert("❌ Could not connect to backend. Make sure Spring Boot is running on port 8084.");
       }
 
       // keep modal open — show confirmation overlay and hearts confetti

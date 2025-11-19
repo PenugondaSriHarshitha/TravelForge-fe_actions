@@ -135,7 +135,7 @@ export default function Trips() {
 
   // load from backend and merge with builtin
   useEffect(() => {
-    fetch("http://localhost:8083/trip/all")
+    fetch("http://localhost:8084/trip/all")
       .then((res) => res.json())
       .then((data) => {
         const safe = Array.isArray(data) ? data.map(normalizeTrip) : [];

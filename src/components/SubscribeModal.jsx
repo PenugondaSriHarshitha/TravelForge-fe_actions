@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import "./SubscribeModal.css";
 import { motion } from "framer-motion";
 
-const API_BASE = "http://localhost:8083"; // Spring Boot backend
+const API_BASE = "http://localhost:8084"; // Spring Boot backend
 
 export default function SubscribeModal() {
   const loc = useLocation();
