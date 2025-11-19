@@ -6,6 +6,7 @@ import { FiX, FiChevronLeft, FiCheck } from "react-icons/fi";
 import { FaGooglePay, FaCcMastercard, FaCcVisa, FaApple } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Booking.css";
+import { API_BASE } from "../api/apiConfig";
 
 // images - put your images in src/images/
 import carImg from "../images/car.png";
@@ -15,7 +16,7 @@ import packageImg from "../images/package.png";
 import stayImg from "../images/stay.png";
 import defaultThumb from "../images/default-thumb.png";
 
-const BACKEND_BASE = "http://localhost:8083"; // backend base URL
+//const BACKEND_BASE = "http://localhost:8084"; // backend base URL
 
 const DEFAULT_CARD_EXAMPLES = [
   { id: "card_1", brand: "Visa", last4: "4242", name: "Bhavya C", expiry: "12/26" },
@@ -127,7 +128,7 @@ function SupportModal({ open, onClose, context = {} }) {
         context: `city=${context.city || ""} type=${context.type || ""}`
       };
 
-      const res = await fetch(`${BACKEND_BASE}/api/support`, {
+      const res = await fetch(`${API_BASE}/api/support`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -167,7 +168,7 @@ function SupportModal({ open, onClose, context = {} }) {
     };
 
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/support-chat`, {
+      const res = await fetch(`${API_BASE}/api/support-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -320,6 +321,7 @@ export default function Booking({
   const routed = !!(location && location.state);
   const routedItem = (location && location.state && location.state.item) ? location.state.item : null;
   const routedType = (location && location.state && location.state.type) ? location.state.type : null;
+const wheelReward = location?.state?.reward || null;
 
   const item = propItem && Object.keys(propItem).length ? propItem : (routedItem || {});
   const type = propType || routedType || "stay";
@@ -381,11 +383,20 @@ export default function Booking({
   }, [type, perUnit, extrasCost, nights]);
 
   const discount = useMemo(() => {
-    if (!couponApplied) return 0;
-    if (couponApplied === "SAVE10") return subtotal * 0.1;
-    if (couponApplied === "TF25") return subtotal * 0.25;
-    return 0;
-  }, [couponApplied, subtotal]);
+  let d = 0;
+  if (couponApplied === "SAVE10") d += subtotal * 0.1;
+  if (couponApplied === "TF25") d += subtotal * 0.25;
+
+  // Apply reward-based offers
+  if (wheelReward) {
+    if (wheelReward.includes("₹1000")) d += 1000;
+    if (wheelReward.includes("₹2000")) d += 2000;
+    if (wheelReward.includes("25% Off")) d += subtotal * 0.25;
+    if (wheelReward.includes("Extra Night")) d += perUnit * 0.5;
+  }
+  return d;
+}, [couponApplied, wheelReward, subtotal, perUnit]);
+
 
   const taxes = useMemo(() => (subtotal - discount) * 0.12, [subtotal, discount]);
   const total = useMemo(() => Math.max(0, subtotal - discount + taxes), [subtotal, discount, taxes]);
@@ -465,7 +476,7 @@ export default function Booking({
 
       // POST to backend bookings endpoint (use full backend URL)
       try {
-        const res = await fetch(`${BACKEND_BASE}/api/bookings`, {
+        const res = await fetch(`${API_BASE}/api/bookings`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bookingPayload),
@@ -482,7 +493,7 @@ export default function Booking({
         }
       } catch (err) {
         console.warn("Failed to save booking to backend:", err);
-        alert("❌ Could not connect to backend. Make sure Spring Boot is running on port 8083.");
+        alert("❌ Could not connect to backend. Make sure Spring Boot is running on port 8084.");
       }
 
       // keep modal open — show confirmation overlay and hearts confetti
@@ -870,7 +881,16 @@ export default function Booking({
 
                         <div className="tf-card tf-card-compact" style={{ marginTop: 12 }}>
                           <div className="tf-mini-row"><div className="muted">Subtotal</div><div>{currency(subtotal)}</div></div>
-                          <div className="tf-mini-row"><div className="muted">Discount</div><div>{couponApplied ? `-${currency(discount)}` : "-"}</div></div>
+<div className="tf-mini-row">
+  <div className="muted">Discount</div>
+  <div>-{currency(discount)}</div>
+</div>
+{wheelReward && (
+  <div className="tf-mini-row">
+    <div className="muted">Bonus</div>
+    <div>{wheelReward}</div>
+  </div>
+)}
                           <div className="tf-mini-row"><div className="muted">Taxes</div><div>{currency(taxes)}</div></div>
                           <div className="tf-mini-row tf-bold" style={{ marginTop: 8 }}><div>Total</div><div>{currency(total)}</div></div>
 
@@ -904,6 +924,12 @@ export default function Booking({
                 <div className="tf-side-top">
                   <div className="tf-side-thumb">{imageSrc ? <img src={imageSrc} alt={item?.city} /> : <div className="tf-thumb-fallback" />}</div>
                   <div>
+                    {wheelReward && (
+  <div className="reward-banner">
+    🎁 <strong>Bonus Applied:</strong> {wheelReward}
+  </div>
+)}
+
                     <div className="tf-side-title">{item?.city || "Selected"}</div>
                     <div className="muted">{type === "flight" ? "Flight" : type === "car" ? "Car" : "Stay"}</div>
                   </div>

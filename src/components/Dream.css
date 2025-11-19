@@ -1,0 +1,113 @@
+/* ROOT */
+.dream-root {
+  min-height: 100vh;
+  padding: 60px 28px;
+  background: linear-gradient(180deg, #faf8f2, #fff);
+  animation: fadeIn 0.6s ease;
+}
+
+/* HEADER */
+.dream-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.dream-header h1 {
+  font-size: 38px;
+  background: linear-gradient(90deg, #0075ff, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+}
+
+.dream-sub {
+  margin-top: 10px;
+  font-size: 18px;
+  color: #444;
+}
+
+/* GRID */
+.dream-grid {
+  display: grid;
+  gap: 26px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+@media (min-width: 820px) {
+  .dream-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* CARD */
+.dream-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  border-radius: 22px;
+  padding: 28px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+  transition: 0.25s ease;
+  animation: cardPop 0.6s ease;
+}
+
+.dream-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+/* ICON */
+.dream-icon {
+  font-size: 42px;
+  margin-bottom: 12px;
+}
+
+/* TEXT */
+.dream-card h2 {
+  font-size: 26px;
+  font-weight: 900;
+  margin-bottom: 10px;
+  color: #222;
+}
+
+.dream-card p {
+  color: #555;
+  font-size: 16px;
+  margin-bottom: 18px;
+}
+
+/* OPEN BUTTON */
+.dream-open-btn {
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  
+  background: linear-gradient(90deg, #00e1ff, #0066ff);
+  color: #fff !important;     /* FIX: visible text */
+  box-shadow: 0 8px 20px rgba(0, 100, 255, 0.35);
+  transition: 0.2s ease;
+}
+
+.dream-open-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(0, 100, 255, 0.45);
+}
+
+.dream-open-btn:active {
+  transform: translateY(1px);
+}
+
+/* ANIMATIONS */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cardPop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}

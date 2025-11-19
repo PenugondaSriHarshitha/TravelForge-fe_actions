@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { API_BASE } from "../api/apiConfig";
 
 import img1 from "../images/img1.png";
 import img2 from "../images/img2.png";
@@ -135,7 +136,8 @@ export default function Trips() {
 
   // load from backend and merge with builtin
   useEffect(() => {
-    fetch("http://localhost:8083/trip/all")
+    fetch(`${API_BASE}/trip/all`)
+
       .then((res) => res.json())
       .then((data) => {
         const safe = Array.isArray(data) ? data.map(normalizeTrip) : [];

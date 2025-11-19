@@ -510,3 +510,18 @@ button:focus, .gallery-item:focus, .modal-inner:focus { outline: 3px solid rgba(
   .gallery-grid { grid-template-columns: 1fr; gap:12px; }
   .hero-title { font-size:28px; }
 }
+
+/* FIX: Make booking panel input text visible */
+.booking-form input[type="date"],
+.booking-form input[type="number"],
+.booking-form input,
+.booking-form label {
+  color: #000 !important;            /* make text visible */
+  background: #ffffff !important;    /* white background */
+  border: 1px solid #ccc !important; /* visible border */
+}
+
+/* FIX: placeholder text */
+.booking-form input::placeholder {
+  color: #555 !important;
+}

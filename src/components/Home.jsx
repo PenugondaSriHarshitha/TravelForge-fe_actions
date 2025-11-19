@@ -23,8 +23,9 @@ import MoodTripPlanner from "./MoodTripPlanner";
 import Footer from "./Footer";
 import "./Home.css";
 import SubscribeModal from "./SubscribeModal";
+import { API_BASE } from "../api/apiConfig";
 
-const API_BASE = "http://localhost:8083";
+//const API_BASE = "http://localhost:8084";
 
 // ---- small animation configs
 const pageVariants = {
@@ -73,6 +74,37 @@ function StatCard({ icon, value, suffix = "", label, note }) {
     </motion.div>
   );
 }
+// --- Helper: Save item to localStorage ---
+// --- Helper: Save item to backend ---
+async function saveItem(item) {
+  try {
+    const payload = {
+      title: item.city || item.title,
+      city: item.city || item.title,
+      price: item.price || "N/A",
+      img: item.img,
+      kind: "deal", // or "story"/"guide" (you can adjust later)
+      savedAt: new Date().toISOString(),
+    };
+
+    const res = await fetch(`${API_BASE}/api/saved`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      console.log("✅ Saved to backend:", payload.title);
+      window.dispatchEvent(new Event("saved-updated"));
+    } else {
+      console.error("❌ Failed to save item:", res.status);
+    }
+  } catch (e) {
+    console.error("Failed to save item:", e);
+  }
+}
+
+
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
@@ -343,21 +375,30 @@ export default function Home() {
                   <p className="hero-sub">Every journey begins with a spark of wonder.</p>
 
                   <div className="tabs" role="tablist" aria-label="Booking tabs">
-                    {["flights", "stays", "cars", "packages"].map((t) => (
-                      <button
-                        key={t}
-                        role="tab"
-                        aria-selected={tab === t}
-                        className={`tab ${tab === t ? "active" : ""}`}
-                        onClick={() => setTab(t)}
-                      >
-                        {t === "flights" && "✈️ Flights"}
-                        {t === "stays" && "🏝 Stays"}
-                        {t === "cars" && "🚙 Cars"}
-                        {t === "packages" && "🌍 Packages"}
-                      </button>
-                    ))}
-                  </div>
+  {["flights", "stays", "cars", "packages"].map((t) => (
+    <button
+      key={t}
+      role="tab"
+      aria-selected={tab === t}
+      className={`tab ${tab === t ? "active" : ""}`}
+      onClick={() => {
+        if (t === "packages") {
+          // ✅ Navigate to Packages page
+          navigate("/packages");
+        } else {
+          // ✅ Keep same behavior for other tabs
+          setTab(t);
+        }
+      }}
+    >
+      {t === "flights" && "✈️ Flights"}
+      {t === "stays" && "🏝 Stays"}
+      {t === "cars" && "🚙 Cars"}
+      {t === "packages" && "🌍 Packages"}
+    </button>
+  ))}
+</div>
+
 
                   <form className="search-form" onSubmit={simulateSearch}>
                     <div className="search-row">
@@ -424,7 +465,18 @@ export default function Home() {
                       <div className="card-actions">
                         <button className="btn-primary" onClick={() => goExplore(r)}>Explore</button>
                         <button className="btn-ghost" onClick={() => goBook(r)}>Book</button>
-                        <button className="btn-ghost" onClick={() => navigate("/saved")} aria-label={`Save ${r.city}`}>♥ Save</button>
+                     <button
+  className="btn-ghost"
+  onClick={() => {
+    saveItem(r);
+    navigate("/saved");
+  }}
+  aria-label={`Save ${r.city}`}
+>
+  ♥ Save
+</button>
+
+
                       </div>
                     </div>
                   </motion.article>
@@ -491,9 +543,23 @@ export default function Home() {
   {isLocked ? "Unlock" : "Open"}
 </button>
 
-                              <button className="pro-save" onClick={(e) => { e.stopPropagation(); navigate("/saved"); }} aria-label={`Save ${p.title}`}>
-                                ♥
-                              </button>
+                              <button
+  className="pro-save"
+  onClick={(e) => {
+    e.stopPropagation();
+    saveItem({
+      id: p.slug,
+      city: p.title,
+      price: "$199", // placeholder value
+      img: p.img,
+    });
+    navigate("/saved");
+  }}
+  aria-label={`Save ${p.title}`}
+>
+  ♥
+</button>
+
                             </div>
                           </div>
                           <div className="pro-media" aria-hidden>
@@ -578,9 +644,24 @@ export default function Home() {
                               Read
                             </button>
 
-                            <button className="btn-ghost small" style={{ marginLeft: 8 }} onClick={() => navigate("/saved")} aria-label={`Save story ${s.title}`}>
-                              ♥ Save
-                            </button>
+                        <button
+  className="btn-ghost"
+  onClick={() => {
+    saveItem({
+      id: s.key,
+      city: s.title,
+      price: "$249",
+      img: s.img,
+    });
+    navigate("/saved");
+  }}
+  aria-label={`Save story ${s.title}`}
+>
+  ♥ Save
+</button>
+
+
+
                           </div>
                         </div>
                       </div>
@@ -594,7 +675,14 @@ export default function Home() {
             {/* CTA */}
             <motion.div className="floating-card glass" initial={{ y: 60, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} transition={{ duration: 0.6 }} style={{ marginTop: 22, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <div>✨ Ready to plan your dream trip?</div>
-              <div><button className="btn-primary" style={{ marginLeft: 8 }} onClick={() => navigate("/results")}>Start Now</button></div>
+              <div><button
+  className="btn-primary"
+  style={{ marginLeft: 8 }}
+  onClick={() => navigate("/dream")}
+>
+  Start Now
+</button>
+</div>
             </motion.div>
 
             {/* FOOTER */}

@@ -1,7 +1,14 @@
 // src/App.jsx
 import React, { useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 
+// 🧩 Component Imports
 import Home from "./components/Home";
 import Results from "./components/Results";
 import Signup from "./components/Signup";
@@ -21,8 +28,15 @@ import MoodTripPlanner from "./components/MoodTripPlanner";
 import Saved from "./components/Saved";
 import Privacy from "./components/Privacy";
 import Terms from "./components/Terms";
+import Help from "./pages/Help";
+import About from "./pages/About";
+import Packages from "./components/Packages";
+import ViewPackage from "./components/ViewPackage";
+import Dream from "./components/Dream";
+import SmartItinerary from "./components/SmartItinerary";
 
-// ✅ Correct ProtectedRoute using "currentUser"
+
+// ✅ Protected Route
 function ProtectedRoute({ children }) {
   const user = JSON.parse(localStorage.getItem("currentUser"));
   if (!user) {
@@ -32,8 +46,20 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+// ✨ Page transition variants (fade + slide)
+const transitionVariant = {
+  initial: { opacity: 0, y: 40 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -40 },
+  transition: { duration: 0.6, ease: "easeInOut" },
+};
+
+// ================================
+// 🎬 MAIN APP COMPONENT
+// ================================
 export default function App() {
   const [showSignup, setShowSignup] = useState(false);
+  const location = useLocation();
 
   const handleSignupSubmit = (data) => {
     console.log("Signup data:", data);
@@ -42,39 +68,88 @@ export default function App() {
 
   return (
     <>
-      <Routes>
-        {/* Main routes */}
-        <Route path="/" element={<Home openSignup={() => setShowSignup(true)} />} />
-        <Route path="/results" element={<Results />} />
-        <Route path="/explore/:id" element={<Explore />} />
-        <Route path="/book/:id" element={<Booking />} />
-        <Route path="/best-time" element={<BestTimeToTravel />} />
-        <Route path="/trips" element={<Trips />} />
-        <Route path="/hidden-gems" element={<HiddenGems />} />
-        <Route path="/budget" element={<BudgetPlanner />} />
-        <Route path="/local-guides" element={<LocalGuides />} />
-        <Route path="/amazing-adventure" element={<AmazingAdventure />} />
-        <Route path="/sunset-escapes" element={<SunsetEscapes />} />
-        <Route path="/checklist" element={<Checklist />} />
-        <Route path="/city-and-sea" element={<CityAndSea />} />
+      {/* ✨ AnimatePresence handles smooth transitions */}
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          {/* ============================
+              MAIN ROUTES WITH ANIMATION
+          ============================ */}
 
-        {/* ✅ Protected FULL PAGE Subscribe Route */}
-        <Route
-          path="/subscribe"
-          element={
-            <ProtectedRoute>
-              <SubscribeModal />   {/* ✅ No modal props, loads as full page */}
-            </ProtectedRoute>
-          }
-        />
+          {/* 🏠 HOME */}
+          <Route
+            path="/"
+            element={
+              <motion.div {...transitionVariant}>
+                <Home openSignup={() => setShowSignup(true)} />
+              </motion.div>
+            }
+          />
 
-        <Route path="/mood-trip" element={<MoodTripPlanner />} />
-        <Route path="/saved" element={<Saved />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
-      </Routes>
+          {/* ✈️ RESULTS */}
+          <Route
+            path="/results"
+            element={
+              <motion.div {...transitionVariant}>
+                <Results />
+              </motion.div>
+            }
+          />
 
-      {/* Floating signup button */}
+          {/* 🌍 PACKAGES (CINEMATIC ENTRANCE) */}
+          <Route
+            path="/packages"
+            element={
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.7, ease: "easeInOut" }}
+              >
+                <Packages />
+              </motion.div>
+            }
+          />
+
+          {/* ============================
+              OTHER ROUTES (normal)
+          ============================ */}
+          <Route path="/explore/:id" element={<Explore />} />
+          <Route path="/book/:id" element={<Booking />} />
+          <Route path="/best-time" element={<BestTimeToTravel />} />
+          <Route path="/trips" element={<Trips />} />
+          <Route path="/hidden-gems" element={<HiddenGems />} />
+          <Route path="/budget" element={<BudgetPlanner />} />
+          <Route path="/local-guides" element={<LocalGuides />} />
+          <Route path="/amazing-adventure" element={<AmazingAdventure />} />
+          <Route path="/sunset-escapes" element={<SunsetEscapes />} />
+          <Route path="/checklist" element={<Checklist />} />
+          <Route path="/city-and-sea" element={<CityAndSea />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/view/:id" element={<ViewPackage />} />
+
+          <Route path="/help" element={<Help />} />
+          <Route
+            path="/subscribe"
+            element={
+              <ProtectedRoute>
+                <SubscribeModal />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/mood-trip" element={<MoodTripPlanner />} />
+          <Route path="/saved" element={<Saved />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/dream" element={<Dream />} />
+          <Route path="/smart-itinerary" element={<SmartItinerary />} />
+
+
+        </Routes>
+      </AnimatePresence>
+
+      {/* ============================
+          FLOATING SIGNUP BUTTON
+      ============================ */}
       <button
         aria-label="Open sign up"
         onClick={() => setShowSignup(true)}
@@ -96,7 +171,9 @@ export default function App() {
         Sign Up
       </button>
 
-      {/* Signup modal */}
+      {/* ============================
+          SIGNUP MODAL
+      ============================ */}
       {typeof Signup === "function" ? (
         <Signup
           open={showSignup}

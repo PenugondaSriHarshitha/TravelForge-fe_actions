@@ -12,6 +12,8 @@ import {
   Circle,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import confetti from "canvas-confetti";
+
 import L from "leaflet";
 import "./Results.css";
 import Booking from "./Booking";
@@ -507,23 +509,50 @@ export default function Results() {
      BOOKING ACTION
      =========================================================== */
   function goToBooking(id, item) {
-    const el = document.querySelector(`article[data-id="${id}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("flash-highlight");
-      setTimeout(() => el.classList.remove("flash-highlight"), 1400);
-    }
+  if (item?.kind === "packages") {
+  // 🧭 Enrich sample packages (like P006) so ViewPackage never blanks
+  const enriched = {
+    ...item,
+    id: item.id || `pkg-${Math.floor(Math.random() * 9999)}`,
+    title: item.title || `${item.city} – Dream Getaway`,
+    nights: item.nights || 4,
+    price: item.price || "₹45,000",
+    rating: item.rating || 4.6,
+    img: item.img || "https://source.unsplash.com/featured/?travel,beach",
+    tags: item.tags || ["adventure", "romantic", "friends"],
+    highlights: [
+      "Guided city tour 🏙️",
+      "Luxury hotel stay 🏨",
+      "Local cuisine experience 🍜",
+      "Cultural show 🎭",
+    ],
+    offer: item.offer || "Limited Time Offer – 20% Off!",
+    weather: item.weather || "26°C 🌤️",
+  };
 
-    setBookingItem(item || null);
+  navigate(`/view/${enriched.id}`, { state: { item: enriched } });
+  return;
+}
 
-    if (item?.kind === "flights") setBookingType("flight");
-    else if (item?.kind === "stays") setBookingType("resort");
-    else if (item?.kind === "cars") setBookingType("car");
-    else if (item?.kind === "packages") setBookingType("package");
-    else setBookingType("stay");
 
-    setBookingOpen(true);
+  // Default behavior for other kinds
+  const el = document.querySelector(`article[data-id="${id}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("flash-highlight");
+    setTimeout(() => el.classList.remove("flash-highlight"), 1400);
   }
+
+  setBookingItem(item || null);
+
+  if (item?.kind === "flights") setBookingType("flight");
+  else if (item?.kind === "stays") setBookingType("resort");
+  else if (item?.kind === "cars") setBookingType("car");
+  else setBookingType("stay");
+
+  setBookingOpen(true);
+}
+
 
   async function handleBookingConfirmed(data) {
     try {
@@ -1374,9 +1403,44 @@ export default function Results() {
                     <div style={{ marginTop: 8 }}>
                       <button
                         className="btn-cta"
-                        onClick={() => setQuizOpen(true)}
+                       onClick={() => {
+  // SCREEN SHAKE
+  document.body.style.animation = "shakeCrazy 0.4s";
+  setTimeout(() => (document.body.style.animation = ""), 400);
+
+  // CONFETTI
+  const duration = 1000;
+  const end = Date.now() + duration;
+  (function frame() {
+    confetti({
+      particleCount: 12,
+      spread: 70,
+      startVelocity: 25,
+      origin: {
+        x: Math.random(),
+        y: Math.random() - 0.2,
+      },
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+
+  // OPEN TRIVIA
+  setQuizOpen(true);
+}}
+
                       >
-                        Take trivia
+                       
+                        {overlayMode === "fun" && (
+  <div style={{ marginTop: 8 }}>
+    <button
+      className="btn-cta"
+      onClick={() => setQuizOpen(true)}
+    >
+      Take trivia
+    </button>
+  </div>
+)}
+
                       </button>
                     </div>
                   )}

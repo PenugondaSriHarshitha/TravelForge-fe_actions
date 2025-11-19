@@ -1,16 +1,21 @@
-// src/components/BudgetPlanner.jsx
-import React, { useState, useMemo, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { PieChart, Pie, Cell } from "recharts";
+// src/components/BudgetDashboard.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ResponsiveContainer, PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip
+} from "recharts";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import "./BudgetPlanner.css";
 
 /*
-  Advanced Budget Planner — cleaned file:
-  - Single chart+legend/totals/export area (no duplicates)
-  - Back button included
-  - Same features preserved
+  Full final single-file BudgetDashboard.jsx (Option A)
+  - Light-only theme (no dark)
+  - Pages: dashboard / plans / reports / settings
+  - Plans: create / apply / delete (Apply immediately updates goal + category limits and navigates to Dashboard)
+  - Reports: bar + pie + table + export
+  - Settings: reset/export/import, currency, colors overview
+  - No overlapping, responsive layout (relies on BudgetPlanner.css)
 */
 
 const CATEGORY_COLORS = {
@@ -22,628 +27,670 @@ const CATEGORY_COLORS = {
   Other: "#7aa2ff",
 };
 
-const STORAGE_KEY = "bg_budget_v1";
-const TEMPLATES_KEY = "bg_budget_templates_v1";
-const LIMITS_KEY = "bg_budget_limits_v1";
+const STORAGE_KEY = "bd_budget_dash_v1";
+const TEMPLATE_KEY = "bd_budget_templates_v1";
+const LIMITS_KEY = "bd_budget_limits_v1";
+const PLANS_KEY = "bd_budget_plans_v1";
+const SETTINGS_KEY = "bd_budget_settings_v1";
 
-function fmtCurrency(amount, currency = "USD") {
+function fmtCurrency(n = 0, currency = "USD") {
   try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
+    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n);
   } catch {
-    return `${currency} ${Number(amount).toLocaleString()}`;
+    return `${currency} ${Number(n).toLocaleString()}`;
   }
 }
+function nowISODate() {
+  return new Date().toISOString().slice(0, 10);
+}
+function downloadBlob(filename, content, type = "application/json") {
+  const blob = new Blob([content], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
-/* ---------------- CustomSelect (color swatches) ---------------- */
-function CustomSelect({ options = [], value, onChange, ariaLabel = "Select", placeholder = "", className = "" }) {
-  const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(null);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    function onDoc(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
-
-  useEffect(() => { if (!open) setHighlight(null); }, [open]);
-
-  function handleKey(e) {
-    if (!open && (e.key === "ArrowDown" || e.key === " " || e.key === "Enter")) { e.preventDefault(); setOpen(true); return; }
-    if (open) {
-      if (e.key === "Escape") { setOpen(false); ref.current?.querySelector(".trigger")?.focus(); }
-      if (e.key === "ArrowDown") { e.preventDefault(); setHighlight(h => (h === null ? 0 : Math.min(h + 1, options.length - 1))); }
-      if (e.key === "ArrowUp") { e.preventDefault(); setHighlight(h => (h === null ? options.length - 1 : Math.max(h - 1, 0))); }
-      if (e.key === "Enter" && highlight !== null) { e.preventDefault(); const opt = options[highlight]; onChange(opt.value ?? opt); setOpen(false); }
-    }
-  }
-
-  const selected = options.find(o => (typeof o === "object" ? o.value === value : o === value));
-
+/* small topbar icon button */
+function IconButton({ children, title, onClick, small }) {
   return (
-    <div ref={ref} className={`custom-select ${className}`} onKeyDown={handleKey}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-label={ariaLabel}
-        className="trigger"
-        onClick={() => setOpen(o => !o)}
-      >
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {selected && selected.color && <div className="color-swatch" style={{ background: selected.color }} />}
-          <div className="label">{selected ? (selected.label ?? selected.value ?? selected) : placeholder}</div>
-        </div>
-        <div className="chev">▾</div>
-      </button>
-
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, y: -6, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -6, scale: 0.98 }}
-          transition={{ duration: 0.12 }}
-          className="custom-select-panel"
-          role="listbox"
-          tabIndex={-1}
-        >
-          {options.map((opt, i) => {
-            const val = typeof opt === "object" ? opt.value : opt;
-            const label = typeof opt === "object" ? (opt.label ?? opt.value) : opt;
-            const color = typeof opt === "object" ? opt.color : null;
-            const selectedFlag = val === value;
-            return (
-              <div
-                key={`${val}-${i}`}
-                role="option"
-                aria-selected={selectedFlag}
-                className="custom-select-option"
-                onMouseEnter={() => setHighlight(i)}
-                onMouseLeave={() => setHighlight(null)}
-                onClick={() => { onChange(val); setOpen(false); }}
-              >
-                {color ? <div className="color-swatch" style={{ background: color }} /> : <div style={{ width: 14 }} />}
-                <div style={{ flex: 1 }}>{label}</div>
-                <div className="muted">{selectedFlag ? "Selected" : ""}</div>
-              </div>
-            );
-          })}
-        </motion.div>
-      )}
-    </div>
+    <button className={`bd-icon-btn ${small ? "small" : ""}`} title={title} onClick={onClick} type="button">
+      {children}
+    </button>
   );
 }
 
-/* ---------------- Expense Editor ---------------- */
-function ExpenseEditor({ item, onSave, onCancel }) {
-  const [eName, setEName] = useState(item.name);
-  const [eAmount, setEAmount] = useState(item.amount);
-  const [eCategory, setECategory] = useState(item.category);
-  const [eDate, setEDate] = useState(item.date);
-  const [eRecurring, setERecurring] = useState(item.recurring);
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <input className="cute-input" value={eName} onChange={(e) => setEName(e.target.value)} />
-      <input className="cute-input" style={{ width: 110 }} value={eAmount} onChange={(e) => setEAmount(e.target.value)} type="number" />
-      <select className="cute-input" value={eCategory} onChange={(e) => setECategory(e.target.value)} style={{ width: 140 }}>
-        {Object.keys(CATEGORY_COLORS).map((c) => (<option key={c}>{c}</option>))}
-      </select>
-      <input className="cute-input" type="date" value={eDate} onChange={(e) => setEDate(e.target.value)} style={{ width: 150 }} />
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input type="checkbox" checked={eRecurring} onChange={() => setERecurring(r => !r)} /> Recurring
-      </label>
-      <button className="btn-cute" onClick={() => onSave({ name: eName, amount: Number(eAmount), category: eCategory, date: eDate, recurring: eRecurring })}>Save</button>
-      <button className="btn-ghost" onClick={onCancel}>Cancel</button>
-    </div>
-  );
-}
-
-/* ---------------- Main Component ---------------- */
-export default function BudgetPlanner() {
+export default function BudgetDashboard() {
   const nameRef = useRef(null);
+  const [page, setPage] = useState("dashboard");
 
-  // states
-  const [currency, setCurrency] = useState("USD");
-  const [mode, setMode] = useState("Trip");
-  const [goal, setGoal] = useState(1200);
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Transport");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [recurring, setRecurring] = useState(false);
+  // settings (light-only)
+  const [settings, setSettings] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { currency: "USD" };
+  });
+  const [currency, setCurrency] = useState(settings.currency || "USD");
 
-  const [expenses, setExpenses] = useState([
-    { id: 1, name: "Flight (est)", amount: 420, category: "Transport", date: "2025-10-11", recurring: false },
-    { id: 2, name: "Hotel (4 nights)", amount: 360, category: "Accommodation", date: "2025-10-12", recurring: false },
-    { id: 3, name: "Food & Snacks", amount: 150, category: "Food", date: "2025-10-13", recurring: false },
-  ]);
-  const [editingId, setEditingId] = useState(null);
-  const [bufferPercent, setBufferPercent] = useState(15);
-  const [templates, setTemplates] = useState([]);
-  const [categoryLimits, setCategoryLimits] = useState({});
-  const [filterText, setFilterText] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
+  // core app state
+  const [goal, setGoal] = useState(1500);
+  const [buffer, setBuffer] = useState(15);
 
-  // load persisted data
-  useEffect(() => {
+  const [expenses, setExpenses] = useState(() => {
+    const seed = [
+      { id: 1, name: "Flight (est)", amount: 420, category: "Transport", date: "2025-10-11", recurring: false },
+      { id: 2, name: "Hotel (4 nights)", amount: 360, category: "Accommodation", date: "2025-10-12", recurring: false },
+      { id: 3, name: "Food & Snacks", amount: 150, category: "Food", date: "2025-10-13", recurring: false },
+    ];
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.expenses) setExpenses(parsed.expenses);
-        if (parsed.goal) setGoal(parsed.goal);
-        if (parsed.currency) setCurrency(parsed.currency);
-        if (parsed.mode) setMode(parsed.mode);
-      }
-      const tplRaw = localStorage.getItem(TEMPLATES_KEY);
-      if (tplRaw) setTemplates(JSON.parse(tplRaw));
-      const limitsRaw = localStorage.getItem(LIMITS_KEY);
-      if (limitsRaw) setCategoryLimits(JSON.parse(limitsRaw));
-    } catch (e) {
-      console.warn("load error", e);
-    }
-  }, []);
+      if (raw) return JSON.parse(raw).expenses ?? seed;
+    } catch {}
+    return seed;
+  });
 
-  // autosave minimal
-  useEffect(() => {
-    const payload = { expenses, goal, currency, mode, updatedAt: new Date().toISOString() };
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch (e) {}
-  }, [expenses, goal, currency, mode]);
+  const [templates, setTemplates] = useState(() => {
+    try { const r = localStorage.getItem(TEMPLATE_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [categoryLimits, setCategoryLimits] = useState(() => {
+    try { const r = localStorage.getItem(LIMITS_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
+  });
+  const [plans, setPlans] = useState(() => {
+    try { const r = localStorage.getItem(PLANS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
 
-  // keyboard shortcut to focus name (n)
+  // form states
+  const [form, setForm] = useState({ name: "", amount: "", category: "Transport", date: nowISODate(), recurring: false });
+  const [filterText, setFilterText] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [editingId, setEditingId] = useState(null);
+
+  // plan form
+  const [planForm, setPlanForm] = useState({
+    name: "",
+    budget: "",
+    start: nowISODate(),
+    end: nowISODate(),
+    limits: {},
+  });
+
+  // persist core items
   useEffect(() => {
-    const h = (e) => {
-      if (e.key === "n" && document.activeElement?.tagName !== "INPUT") { e.preventDefault(); nameRef.current?.focus(); }
-      if (e.key === "Escape") setEditingId(null);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, []);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ expenses, updatedAt: new Date().toISOString() })); } catch {}
+  }, [expenses]);
+
+  useEffect(() => {
+    try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates)); } catch {}
+  }, [templates]);
+
+  useEffect(() => {
+    try { localStorage.setItem(LIMITS_KEY, JSON.stringify(categoryLimits)); } catch {}
+  }, [categoryLimits]);
+
+  useEffect(() => {
+    try { localStorage.setItem(PLANS_KEY, JSON.stringify(plans)); } catch {}
+  }, [plans]);
+
+  useEffect(() => {
+    const next = { ...settings, currency };
+    setSettings(next);
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
+  }, [currency]);
 
   // derived values
   const total = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount || 0), 0), [expenses]);
+  const projected = Math.round(total * (1 + buffer / 100));
+  const progress = Math.min(100, Math.round((total / (goal || 1)) * 100));
+  const recurringCount = expenses.filter(e => e.recurring).length;
+
   const breakdown = useMemo(() => {
     const map = {};
     Object.keys(CATEGORY_COLORS).forEach(c => (map[c] = 0));
     expenses.forEach(e => (map[e.category] = (map[e.category] || 0) + Number(e.amount || 0)));
-    return Object.entries(map).filter(([_, v]) => v > 0).map(([name, value]) => ({ name, value }));
+    return Object.entries(map).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
   }, [expenses]);
-  const recurringCount = useMemo(() => expenses.filter(x => x.recurring).length, [expenses]);
-  const projected = useMemo(() => Math.round(total * (1 + bufferPercent / 100)), [total, bufferPercent]);
-  const progress = Math.min(100, Math.round((total / (goal || 1)) * 100));
 
-  // search + sort applied list
-  const filteredSortedExpenses = useMemo(() => {
-    const ft = filterText.trim().toLowerCase();
-    let arr = expenses.filter(e =>
-      (!ft || e.name.toLowerCase().includes(ft) || e.category.toLowerCase().includes(ft) || e.date.includes(ft))
-    );
-    if (sortBy === "newest") arr = arr.sort((a, b) => b.id - a.id);
-    if (sortBy === "oldest") arr = arr.sort((a, b) => a.id - b.id);
-    if (sortBy === "amt-high") arr = arr.sort((a, b) => b.amount - a.amount);
-    if (sortBy === "amt-low") arr = arr.sort((a, b) => a.amount - b.amount);
-    return arr;
-  }, [expenses, filterText, sortBy]);
-
-  // category totals and limit checking
   const categoryTotals = useMemo(() => {
     const t = {};
-    Object.keys(CATEGORY_COLORS).forEach(c => (t[c] = 0));
-    expenses.forEach(e => t[e.category] = (t[e.category] || 0) + Number(e.amount || 0));
+    Object.keys(CATEGORY_COLORS).forEach(k => (t[k] = 0));
+    expenses.forEach(e => (t[e.category] = (t[e.category] || 0) + Number(e.amount || 0)));
     return t;
   }, [expenses]);
 
-  const overBudgetCategories = useMemo(() => {
-    return Object.entries(categoryLimits)
-      .filter(([cat, limit]) => limit && (categoryTotals[cat] || 0) > Number(limit))
-      .map(([cat]) => cat);
-  }, [categoryLimits, categoryTotals]);
+  const visibleExpenses = useMemo(() => {
+    const ft = filterText.trim().toLowerCase();
+    let arr = expenses.filter(e => !ft || e.name.toLowerCase().includes(ft) || e.category.toLowerCase().includes(ft) || e.date.includes(ft));
+    if (sortBy === "newest") arr = arr.sort((a,b) => b.id - a.id);
+    if (sortBy === "oldest") arr = arr.sort((a,b) => a.id - b.id);
+    if (sortBy === "amt-high") arr = arr.sort((a,b) => b.amount - a.amount);
+    if (sortBy === "amt-low") arr = arr.sort((a,b) => a.amount - b.amount);
+    return arr;
+  }, [expenses, filterText, sortBy]);
 
-  // actions
+  /* ---------- Expense actions ---------- */
   function addExpense() {
-    if (!name || !amount || Number(amount) <= 0) { alert("Please provide a name and a positive amount."); return; }
-    const newItem = { id: Date.now(), name: name.trim(), amount: Number(amount), category, date, recurring };
+    if (!form.name || !form.amount || Number(form.amount) <= 0) { alert("Provide a name and positive amount."); return; }
+    const newItem = { id: Date.now(), name: form.name.trim(), amount: Number(form.amount), category: form.category, date: form.date, recurring: !!form.recurring };
     setExpenses(s => [newItem, ...s]);
-    setName(""); setAmount(""); setRecurring(false);
+    setForm({ ...form, name: "", amount: "", recurring: false });
   }
+  function removeExpense(id) { if (!confirm("Delete this expense?")) return; setExpenses(s => s.filter(x => x.id !== id)); }
+  function startEdit(e) { setEditingId(e.id); setForm({ name: e.name, amount: e.amount, category: e.category, date: e.date, recurring: e.recurring }); nameRef.current?.focus(); }
+  function saveEdit() { if (!editingId) return; setExpenses(s => s.map(it => (it.id === editingId ? { ...it, ...form, amount: Number(form.amount) } : it))); setEditingId(null); setForm({ name: "", amount: "", category: "Transport", date: nowISODate(), recurring: false }); }
 
-  function startEdit(id) { setEditingId(id); }
-  function saveEdit(id, edited) { setExpenses(s => s.map(it => (it.id === id ? { ...it, ...edited } : it))); setEditingId(null); }
-  function removeExpense(id) { setExpenses(s => s.filter(i => i.id !== id)); }
-
-  function exportCSV() {
-    const header = ["Name", "Amount", "Category", "Date", "Recurring"];
-    const rows = expenses.map(e => [e.name, e.amount, e.category, e.date, e.recurring]);
-    const csv = [header, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `budget-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  /* ---------- Exports ---------- */
+  function exportCSV(rows = expenses, filename = `budget-${new Date().toISOString().slice(0,10)}.csv`) {
+    const header = ["Name","Amount","Category","Date","Recurring"];
+    const mapRows = rows.map(e => [e.name, e.amount, e.category, e.date, e.recurring ? "Yes" : "No"]);
+    const csv = [header, ...mapRows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    downloadBlob(filename, csv, "text/csv");
   }
-
-  function exportJSON() {
-    const payload = { expenses, goal, currency, mode, updatedAt: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `budget-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+  function exportJSON(data = { expenses, goal, currency, buffer }, filename = `budget-${new Date().toISOString().slice(0,10)}.json`) {
+    downloadBlob(filename, JSON.stringify(data, null, 2), "application/json");
   }
-
-  function exportPDF() {
+  function exportPDF(rows = expenses, title = "Budget Report") {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("Budget Planner Report", 40, 50);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Currency: ${currency}    Mode: ${mode}`, 40, 72);
-    doc.text(`Goal: ${fmtCurrency(goal, currency)}    Total Spent: ${fmtCurrency(total, currency)}    Progress: ${progress}%`, 40, 88);
-
-    const rows = expenses.map(e => [e.name, fmtCurrency(e.amount, currency), e.category, e.date, e.recurring ? "Yes" : "No"]);
-    doc.autoTable({
-      startY: 110,
-      head: [["Name", "Amount", "Category", "Date", "Recurring"]],
-      body: rows,
-      theme: "grid",
-      headStyles: { fillColor: [30, 40, 40] },
-    });
-    doc.save(`budget-report-${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.setFontSize(18); doc.text(title, 40, 50);
+    doc.setFontSize(11); doc.text(`Goal: ${fmtCurrency(goal,currency)}  Total: ${fmtCurrency(total,currency)}`, 40, 70);
+    const tbl = rows.map(e => [e.name, fmtCurrency(e.amount,currency), e.category, e.date, e.recurring ? "Yes" : "No"]);
+    doc.autoTable({ startY: 100, head: [["Name","Amount","Category","Date","Recurring"]], body: tbl, theme: "grid" });
+    doc.save(`${title.replace(/\s+/g,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.pdf`);
   }
 
-  function smartSuggest() {
-    const defaultSuggest = mode === "Trip" ? Math.max(500, Math.round(total * 1.25)) : Math.max(800, Math.round(total * 1.2));
-    setGoal(defaultSuggest);
+  /* ---------- Templates ---------- */
+  function saveTemplate(name) {
+    if (!name) return alert("Give template name");
+    const tpl = { id: Date.now(), name, createdAt: new Date().toISOString(), expenses, goal, currency, buffer };
+    const next = [tpl, ...templates].slice(0, 20);
+    setTemplates(next); localStorage.setItem(TEMPLATE_KEY, JSON.stringify(next)); alert("Template saved");
   }
-
-  function resetAll() {
-    if (!confirm("Reset all expenses and settings?")) return;
-    setExpenses([]); setGoal(0); setCurrency("USD"); setMode("Trip"); localStorage.removeItem(STORAGE_KEY);
-  }
-
-  // Templates
-  function saveTemplate(nameForTemplate) {
-    if (!nameForTemplate) return alert("Give your template a name.");
-    const tpl = { id: Date.now(), name: nameForTemplate, createdAt: new Date().toISOString(), expenses, goal, currency, mode };
-    const newTpls = [tpl, ...templates].slice(0, 10);
-    setTemplates(newTpls);
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(newTpls));
-    alert("Template saved!");
-  }
-
   function loadTemplate(id) {
-    const tpl = templates.find(t => t.id === id);
-    if (!tpl) return;
-    setExpenses(tpl.expenses || []); setGoal(tpl.goal || 0); setCurrency(tpl.currency || "USD"); setMode(tpl.mode || "Trip");
-    alert(`Loaded template: ${tpl.name}`);
+    const tpl = templates.find(t => t.id === id); if (!tpl) return;
+    setExpenses(tpl.expenses || []); setGoal(tpl.goal || 0); setCurrency(tpl.currency || "USD"); setBuffer(tpl.buffer || 0); alert(`Loaded: ${tpl.name}`);
+  }
+  function deleteTemplate(id) { if (!confirm("Delete template?")) return; setTemplates(ts => ts.filter(t => t.id !== id)); localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates.filter(t => t.id !== id))); }
+
+  /* ---------- Plans (A) ---------- */
+  function createPlan() {
+    if (!planForm.name || !planForm.budget) return alert("Plan requires name and budget");
+    const plan = {
+      id: Date.now(),
+      name: planForm.name,
+      budget: Number(planForm.budget),
+      start: planForm.start,
+      end: planForm.end,
+      limits: { ...(planForm.limits || {}) }
+    };
+    setPlans(p => [plan, ...p]);
+    setPlanForm({ name: "", budget: "", start: nowISODate(), end: nowISODate(), limits: {} });
+    alert("Plan created");
+  }
+  function deletePlan(id) { if (!confirm("Delete plan?")) return setPlans(p => p.filter(x => x.id !== id)); }
+
+  // IMPORTANT: When applying a plan we MUST clone the limits object to force React re-render
+  function applyPlan(id) {
+  const p = plans.find(x => x.id === id);
+  if (!p) return;
+  setGoal(p.budget || 0);
+  const updatedLimits = { ...(p.limits || {}) };
+  setCategoryLimits(updatedLimits);
+  try { localStorage.setItem(LIMITS_KEY, JSON.stringify(updatedLimits)); } catch {}
+  setPage("dashboard");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  alert(`Applied plan: ${p.name}`);
+}
+
+  function planSetLimit(cat, val) {
+    setPlanForm(f => ({ ...f, limits: { ...f.limits, [cat]: val ? Number(val) : 0 } }));
   }
 
-  function deleteTemplate(id) {
-    const newTpls = templates.filter(t => t.id !== id);
-    setTemplates(newTpls);
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(newTpls));
+  /* ---------- Settings actions ---------- */
+  function resetAllData() {
+    if (!confirm("Reset all data (expenses, templates, plans, settings)?")) return;
+    setExpenses([]); setTemplates([]); setPlans([]); setCategoryLimits({}); setGoal(0); setBuffer(0);
+    localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(TEMPLATE_KEY); localStorage.removeItem(PLANS_KEY); localStorage.removeItem(LIMITS_KEY); localStorage.removeItem(SETTINGS_KEY);
+    alert("All data reset");
+  }
+  function resetExpenses() { if (!confirm("Reset only expenses?")) return; setExpenses([]); localStorage.setItem(STORAGE_KEY, JSON.stringify({ expenses: [] })); alert("Expenses reset"); }
+  function resetTemplates() { if (!confirm("Reset templates?")) return; setTemplates([]); localStorage.removeItem(TEMPLATE_KEY); alert("Templates reset"); }
+
+  function exportBackup() {
+    const data = { expenses, templates, plans, categoryLimits, goal, buffer, settings };
+    exportJSON(data, `budget-backup-${new Date().toISOString().slice(0,10)}.json`);
+  }
+  function importBackup(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const json = JSON.parse(e.target.result);
+        if (json.expenses) setExpenses(json.expenses);
+        if (json.templates) setTemplates(json.templates);
+        if (json.plans) setPlans(json.plans);
+        if (json.categoryLimits) setCategoryLimits(json.categoryLimits);
+        if (json.goal) setGoal(json.goal);
+        if (json.buffer) setBuffer(json.buffer);
+        if (json.settings) { setSettings(json.settings); setCurrency(json.settings.currency || "USD"); }
+        alert("Backup imported");
+      } catch (err) { alert("Import failed: invalid file"); }
+    };
+    reader.readAsText(file);
   }
 
-  // Category limits
-  function setCategoryLimit(cat, value) {
-    const next = { ...categoryLimits, [cat]: value ? Number(value) : 0 };
-    setCategoryLimits(next);
-    try { localStorage.setItem(LIMITS_KEY, JSON.stringify(next)); } catch {}
-  }
+  const categoryOptions = Object.keys(CATEGORY_COLORS);
 
-  const categoryOptions = Object.keys(CATEGORY_COLORS).map(k => ({ value: k, label: k, color: CATEGORY_COLORS[k] }));
-
+  /* ---------- Render UI ---------- */
   return (
-    <div className="budget-planner">
-      <div className="container">
+    <div className="bd-root" style={{ background: "var(--page-bg, #fbf6ea)" }}>
+      <aside className="bd-sidebar" role="navigation" aria-label="Main navigation">
+        <div className="bd-logo">Budget<span>Pro</span></div>
+        <nav className="bd-nav">
+          <button className={`bd-nav-item ${page === "dashboard" ? "active" : ""}`} onClick={() => setPage("dashboard")}>Dashboard</button>
+          <button className={`bd-nav-item ${page === "plans" ? "active" : ""}`} onClick={() => setPage("plans")}>Plans</button>
+          <button className={`bd-nav-item ${page === "reports" ? "active" : ""}`} onClick={() => setPage("reports")}>Reports</button>
+          <button className={`bd-nav-item ${page === "settings" ? "active" : ""}`} onClick={() => setPage("settings")}>Settings</button>
+        </nav>
 
-        {/* Back button (top-left in container) */}
-        <div style={{ marginBottom: 16 }}>
-          <button
-            className="btn-ghost"
-            onClick={() => window.history.back()}
-            style={{ fontWeight: 700 }}
-            aria-label="Go back"
-          >
-            ← Back
-          </button>
-        </div>
-
-        {/* header */}
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-          <div>
-            <h1 className="cute-heading">✨ Budget Planner ^ _ ^</h1>
-            <p className="muted">Smart tools, templates, filters, and printable reports — everything to impress.</p>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <CustomSelect options={["USD","EUR","INR","JPY"].map(c=>({value:c,label:c}))} value={currency} onChange={setCurrency} className="select-small"/>
-            <button className="btn-cute" onClick={exportCSV}>Export CSV</button>
-            <button className="btn-ghost" onClick={exportJSON}>Export JSON</button>
-            <button className="btn-cute" onClick={exportPDF}>Export PDF</button>
-            <button className="btn-ghost" onClick={resetAll}>Reset</button>
+        <div className="bd-sidebar-bottom">
+          <div className="muted small">Theme</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <IconButton small title="Light (fixed)">☀️</IconButton>
           </div>
         </div>
+      </aside>
 
-        {/* search + sort */}
-        <div style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center" }}>
-          <input className="cute-input" style={{ flex: 1 }} placeholder="Search expenses, category, or date..." value={filterText} onChange={(e)=>setFilterText(e.target.value)} />
-          <CustomSelect
-            options={[
-              { value: "newest", label: "Newest" },
-              { value: "oldest", label: "Oldest" },
-              { value: "amt-high", label: "Amount: high → low" },
-              { value: "amt-low", label: "Amount: low → high" },
-            ]}
-            value={sortBy}
-            onChange={setSortBy}
-            className="select-small"
-          />
-          <button className="btn-ghost" onClick={() => { setFilterText(""); setSortBy("newest"); }}>Clear</button>
-        </div>
+      <main className="bd-main">
+        <header className="bd-topbar" role="banner">
+          <div className="bd-topbar-left">
+            <h1>Budget Planner</h1>
+            <div className="muted">Smart templates • exports • insights</div>
+          </div>
 
-        <div style={{ height: 18 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <select className="bd-small-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <option>USD</option><option>EUR</option><option>INR</option><option>JPY</option>
+            </select>
 
-        <div className="grid-3">
-          {/* left panel (form + controls) */}
-          <motion.div initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 className="cute-heading" style={{ fontSize: 16 }}>Add Expense</h2>
-              <div>
-                <button className="btn-ghost" onClick={() => setMode(m => m === "Trip" ? "Monthly" : "Trip")}>Mode: {mode}</button>
-              </div>
-            </div>
+            <IconButton title="Export CSV" onClick={() => exportCSV()}>CSV</IconButton>
+            <IconButton title="Export JSON" onClick={() => exportJSON()}>JSON</IconButton>
+            <IconButton title="Export PDF" onClick={() => exportPDF()}>PDF</IconButton>
+          </div>
+        </header>
 
-           <p style={{ color: "#000" }}>Smart tools, templates, filters, and printable reports — everything to impress.</p>
+        {/* ====== DASHBOARD ====== */}
+        {page === "dashboard" && (
+          <section className="bd-grid" aria-live="polite">
+            <section className="bd-col-left card">
+              <h3>New Transaction</h3>
+              <div className="form-row">
+                <input ref={nameRef} className="bd-input" placeholder="Name (e.g., Local train)" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
+                <input className="bd-input" placeholder={`Amount (${currency})`} value={form.amount} onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))} type="number"/>
+                <select className="bd-input" value={form.category} onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}>
+                  {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input className="bd-input" type="date" value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} />
+                <label className="bd-checkbox"><input type="checkbox" checked={form.recurring} onChange={() => setForm(f => ({ ...f, recurring: !f.recurring }))} /> Recurring</label>
 
-            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-              <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} placeholder="Expense name (eg. local train)" className="cute-input" aria-label="Expense name" />
-              <div style={{ display: "flex", gap: 10 }}>
-                <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" className="cute-input" placeholder={`Amount (${currency})`} aria-label="Amount" />
-                <CustomSelect options={categoryOptions} value={category} onChange={(v)=>setCategory(v)} className="select-medium" />
-              </div>
-
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="cute-input" style={{ width: 170 }} />
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={recurring} onChange={() => setRecurring(r => !r)} /> Recurring
-                </label>
-              </div>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-cute" onClick={addExpense}>Add</button>
-                <button className="btn-ghost" onClick={() => { setName(""); setAmount(""); setRecurring(false); }}>Clear</button>
-                <button className="btn-ghost" onClick={smartSuggest}>Smart Suggest</button>
-              </div>
-
-              {/* goal + buffer */}
-              <div style={{ marginTop: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div className="muted">Goal</div>
-                    <input type="number" value={goal} onChange={(e) => setGoal(Number(e.target.value))} className="cute-input" style={{ width: 150, marginTop: 6 }} />
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div className="muted">Used</div>
-                    <div style={{ fontWeight: 800 }}>{fmtCurrency(total, currency)}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div>
-                    <div className="muted" style={{ marginTop: 6 }}>Progress: {progress}%</div>
-                    {total > goal && <div style={{ color: "#ff9b9b", marginTop: 6, fontWeight: 800 }}>Alert: You're over your goal!</div>}
-                  </div>
-                  <div style={{ width: 140 }}>
-                    <div className="muted">Buffer</div>
-                    <input type="range" min={0} max={50} value={bufferPercent} onChange={(e) => setBufferPercent(Number(e.target.value))} style={{ width: "100%" }} />
-                    <div style={{ fontSize: 12, marginTop: 4 }}>{bufferPercent}% — projected {fmtCurrency(projected, currency)}</div>
-                  </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {editingId ? (
+                    <>
+                      <button className="bd-btn primary" onClick={saveEdit}>Save</button>
+                      <button className="bd-btn" onClick={() => { setEditingId(null); setForm({ name: "", amount: "", category: "Transport", date: nowISODate(), recurring: false }); }}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="bd-btn primary" onClick={addExpense}>Add</button>
+                      <button className="bd-btn" onClick={() => setForm({ name: "", amount: "", category: "Transport", date: nowISODate(), recurring: false })}>Clear</button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* templates */}
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-                <button className="btn-ghost" onClick={() => {
-                  const nameTpl = prompt("Template name?");
-                  if (nameTpl) saveTemplate(nameTpl);
-                }}>Save Template</button>
-                <div style={{ display: "flex", gap: 6, alignItems: "center", overflowX: "auto" }}>
-                  {templates.slice(0, 6).map(t => (
-                    <div key={t.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <button className="btn-ghost" onClick={() => loadTemplate(t.id)}>{t.name}</button>
-                      <button className="btn-ghost" onClick={() => { if (confirm("Delete template?")) deleteTemplate(t.id); }}>✕</button>
+              <div className="card-section">
+                <div className="muted">Goal</div>
+                <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8 }}>
+                  <input className="bd-input small" type="number" value={goal} onChange={(e) => setGoal(Number(e.target.value))} />
+                  <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                    <div className="muted">Used</div><div style={{ fontWeight: 800 }}>{fmtCurrency(total,currency)}</div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <div className="muted">Buffer</div>
+                  <input aria-label="buffer" type="range" min={0} max={50} value={buffer} onChange={(e) => setBuffer(Number(e.target.value))} />
+                  <div className="muted small">{buffer}% — projected {fmtCurrency(projected,currency)}</div>
+                </div>
+              </div>
+
+              <div className="card-section">
+                <h4>Category limits</h4>
+                <div className="limits-grid">
+                  {categoryOptions.map(cat => (
+                    <div key={cat} className="limit-row">
+                      <div className="limit-left">
+                        <div className="limit-dot" style={{ background: CATEGORY_COLORS[cat] }} />
+                        <div className="limit-name">{cat}</div>
+                      </div>
+                      <div style={{ minWidth: 160 }}>
+                        {/* Controlled input reflecting categoryLimits state */}
+                        <input
+                          className="bd-input small"
+                          placeholder="limit"
+                          value={categoryLimits[cat] ?? ""}
+                          onChange={(e) => { const v = e.target.value; setCategoryLimits(prev => ({ ...prev, [cat]: v ? Number(v) : 0 })); }}
+                        />
+                        <div className="muted small" style={{ textAlign: "right", marginTop: 6 }}>{fmtCurrency(categoryTotals[cat] || 0, currency)}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* category limits */}
-              <div style={{ marginTop: 8 }}>
-                <div className="muted">Category limits (set to get alerted when a category exceeds its limit)</div>
-                <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                  {Object.keys(CATEGORY_COLORS).map(cat => (
-                    <div key={cat} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <div style={{ width: 12, height: 12, borderRadius: 999, background: CATEGORY_COLORS[cat] }} />
-                      <div style={{ flex: 1, fontWeight: 700 }}>{cat}</div>
-                      <input className="cute-input" style={{ width: 110 }} placeholder="limit" value={categoryLimits[cat] || ""} onChange={(e) => setCategoryLimit(cat, e.target.value)} />
-                      <div style={{ width: 120, textAlign: "right", fontWeight: 800 }}>{fmtCurrency(categoryTotals[cat] || 0, currency)}</div>
-                      {categoryLimits[cat] && (categoryTotals[cat] || 0) > Number(categoryLimits[cat]) && <div style={{ color: "#ff9b9b", fontWeight: 800, marginLeft: 6 }}>Over</div>}
+              <div className="card-section">
+                <h4>Templates</h4>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button className="bd-btn" onClick={() => { const n = prompt("Template name?"); if (n) saveTemplate(n); }}>Save</button>
+                  <div className="muted small">({templates.length} saved)</div>
+                </div>
+                <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {templates.map(t => (
+                    <div key={t.id} className="tpl-chip">
+                      <button className="bd-btn ghost" onClick={() => loadTemplate(t.id)}>{t.name}</button>
+                      <button className="bd-btn ghost small" onClick={() => { if (confirm("Delete?")) deleteTemplate(t.id); }}>✕</button>
                     </div>
                   ))}
                 </div>
               </div>
+            </section>
 
-            </div>
-          </motion.div>
-
-          {/* right panel (breakdown + details) */}
-          <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.06 }} className="card" style={{ minHeight: 520 }}>
-            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-              <div style={{ width: 260 }}>
-                <h3 className="cute-heading">Expense Breakdown</h3>
-                <p className="muted">Hover slices to view amounts. Categories over their limit are marked.</p>
-
-                {/* ===== Chart wrapper (pie + legend + totals + exports) ===== */}
-                <div className="chart-wrapper-card" style={{ marginTop: 12 }}>
-                  <div className="chart-box" aria-hidden>
-                    {Array.isArray(breakdown) && breakdown.length > 0 && total > 0 ? (
-                      <PieChart width={240} height={240}>
-                        <Pie
-                          data={breakdown}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={56}
-                          outerRadius={98}
-                          paddingAngle={6}
-                        >
-                          {breakdown.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || "#8884d8"} />
-                          ))}
+            {/* Right columns */}
+            <section className="bd-col-right">
+              <div className="grid-right">
+                <div className="card card-panel">
+                  <h3>Expense Breakdown</h3>
+                  <div className="muted">Hover slices to view shares</div>
+                  <div style={{ height: 260, marginTop: 12 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={breakdown} dataKey="value" nameKey="name" innerRadius="50%" outerRadius="70%" paddingAngle={6}>
+                          {breakdown.map((entry, i) => <Cell key={i} fill={CATEGORY_COLORS[entry.name] || "#8884d8"} />)}
                         </Pie>
                       </PieChart>
-                    ) : (
-                      <div className="chart-empty">No data</div>
-                    )}
+                    </ResponsiveContainer>
                   </div>
 
-                  <div className="chart-legend" role="list" aria-label="Expense categories legend">
-                    {/* totals block at top */}
-                    <div className="legend-overview">
-                      <div className="legend-overview-left">
-                        <div className="muted">Total</div>
-                        <div className="legend-total">{fmtCurrency(total, currency)}</div>
-                      </div>
-                      <div className="legend-overview-right">
-                        <div className="muted">Goal</div>
-                        <div className="legend-goal">{fmtCurrency(goal, currency)}</div>
-                      </div>
-                    </div>
-
-                    {/* each legend row */}
-                    <div className="legend-list">
-                      {breakdown.map((b) => {
-                        const pct = Math.round((b.value / (total || 1)) * 100);
-                        return (
-                          <div key={b.name} className="legend-item" role="listitem">
-                            <div className="legend-dot" style={{ background: CATEGORY_COLORS[b.name] }} aria-hidden />
-                            <div className="legend-label">{b.name}</div>
-                            <div className="legend-value">{fmtCurrency(b.value, currency)}</div>
-                            <div className="legend-percent">{pct}%</div>
+                  <div className="legend-list">
+                    {breakdown.length === 0 && <div className="muted">No expenses yet</div>}
+                    {breakdown.map(b => {
+                      const pct = Math.round((b.value / (total || 1)) * 100);
+                      return (
+                        <div key={b.name} className="legend-row">
+                          <div className="legend-dot" style={{ background: CATEGORY_COLORS[b.name] }} />
+                          <div className="legend-meta">
+                            <div className="legend-name">{b.name}</div>
+                            <div className="muted small">{pct}%</div>
                           </div>
-                        );
-                      })}
-                      {breakdown.length === 0 && <div className="muted">No expenses — add one to get started.</div>}
-                    </div>
-
-                    {/* action buttons (only here) */}
-                    <div className="legend-actions">
-                      <button className="btn-cute" onClick={exportCSV}>Quick Export CSV</button>
-                      <button className="btn-cute" onClick={exportJSON}>Quick Export JSON</button>
-                      <button className="btn-cute" onClick={exportPDF}>Download PDF</button>
-                    </div>
+                          <div style={{ marginLeft: "auto", fontWeight: 800 }}>{fmtCurrency(b.value,currency)}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                {/* ===== end chart wrapper ===== */}
 
-                {/* NOTE: removed duplicate totals/export buttons that were causing overlap */}
+                <div className="card card-panel">
+                  <h3>Details & Insights</h3>
+                  <div className="muted">Auto-adjust, forecasts & tips</div>
+
+                  <div className="stat-grid">
+                    <div className="stat">
+                      <div className="muted">Total</div>
+                      <div className="stat-figure">{fmtCurrency(total,currency)}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="muted">Goal</div>
+                      <div className="stat-figure">{fmtCurrency(goal,currency)}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="muted">Progress</div>
+                      <div className="stat-figure">{progress}%</div>
+                    </div>
+                    <div className="stat">
+                      <div className="muted">Forecast</div>
+                      <div className="stat-figure">{fmtCurrency(projected,currency)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    <strong>Pro-tip:</strong> {total > goal ? "You're over your goal — consider reducing shopping or activities." : "Save on transport: consider group passes."}
+                  </div>
+
+                  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                    <button className="bd-btn primary" onClick={() => exportCSV()}>Quick Export CSV</button>
+                    <button className="bd-btn" onClick={() => exportJSON()}>Quick Export JSON</button>
+                    <button className="bd-btn" onClick={() => exportPDF()}>Download PDF</button>
+                  </div>
+                </div>
               </div>
 
-              <div style={{ flex: 1 }}>
-                <h3 className="cute-heading" style={{ fontSize: 15 }}>Details & Advanced Options</h3>
-                <p className="muted">Organize, forecast, and set automation rules.</p>
-
-                <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <div>
-                      <div className="muted">Auto-adjust budget</div>
-                      <div style={{ fontWeight: 800 }}>Smart buffer: {bufferPercent}%</div>
-                    </div>
-                    <div className="muted">Recommended</div>
+              {/* Transactions list */}
+              <div className="card" style={{ marginTop: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3>Transactions</h3>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input className="bd-input small" placeholder="Search..." value={filterText} onChange={(e) => setFilterText(e.target.value)} />
+                    <select className="bd-small-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                      <option value="newest">Newest</option>
+                      <option value="oldest">Oldest</option>
+                      <option value="amt-high">Amount high→low</option>
+                      <option value="amt-low">Amount low→high</option>
+                    </select>
                   </div>
+                </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <div>
-                      <div className="muted">Recurring expenses</div>
-                      <div style={{ fontWeight: 800 }}>{recurringCount} active</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div className="muted">Forecast</div>
-                      <div style={{ fontWeight: 800 }}>{fmtCurrency(projected, currency)}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div className="muted">Pro-tip</div>
-                      <div style={{ fontWeight: 800 }}>Save on transport: group passes</div>
-                    </div>
-                    <div><button className="btn-ghost" onClick={() => { navigator.clipboard?.writeText("Save on transport: group passes"); alert("Tip copied!"); }}>Copy Tip</button></div>
-                  </div>
-
-                  <div>
-                    <div className="muted">Templates</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                      {templates.length === 0 && <div className="muted">No templates saved</div>}
-                      {templates.map(t => (
-                        <div key={t.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <button className="btn-ghost" onClick={() => loadTemplate(t.id)}>{t.name}</button>
-                          <button className="btn-ghost" onClick={() => deleteTemplate(t.id)}>✕</button>
+                <div className="transactions-list">
+                  {visibleExpenses.length === 0 && <div className="muted">No transactions</div>}
+                  {visibleExpenses.map(e => (
+                    <div key={e.id} className="transaction-row">
+                      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <div className="avatar" style={{ background: CATEGORY_COLORS[e.category] }}>{e.category[0]}</div>
+                        <div>
+                          <div style={{ fontWeight: 800 }}>{e.name}</div>
+                          <div className="muted small">{e.date} • {e.category} {e.recurring ? "• Recurring" : ""}</div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Note: export buttons intentionally kept in chart legend area to avoid duplication/overlap */}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <div style={{ fontWeight: 800 }}>{fmtCurrency(e.amount,currency)}</div>
+                        <button className="bd-btn" onClick={() => startEdit(e)}>Edit</button>
+                        <button className="bd-btn ghost" onClick={() => removeExpense(e.id)}>Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </section>
+        )}
+
+        {/* ====== PLANS ====== */}
+        {page === "plans" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div className="card">
+              <h2>Create Plan</h2>
+              <div style={{ display: "grid", gap: 8 }}>
+                <input className="bd-input" placeholder="Plan name" value={planForm.name} onChange={(e) => setPlanForm(f => ({ ...f, name: e.target.value }))} />
+                <input className="bd-input" placeholder="Budget amount" value={planForm.budget} onChange={(e) => setPlanForm(f => ({ ...f, budget: e.target.value }))} type="number" />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="bd-input small" type="date" value={planForm.start} onChange={(e) => setPlanForm(f => ({ ...f, start: e.target.value }))} />
+                  <input className="bd-input small" type="date" value={planForm.end} onChange={(e) => setPlanForm(f => ({ ...f, end: e.target.value }))} />
+                </div>
+
+                <div>
+                  <div className="muted">Category limits</div>
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {categoryOptions.map(cat => (
+                      <div key={cat} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <div style={{ width: 12, height: 12, borderRadius: 6, background: CATEGORY_COLORS[cat] }} />
+                        <div style={{ flex: 1 }}>{cat}</div>
+                        <input className="bd-input small" placeholder="limit" value={planForm.limits[cat] ?? ""} onChange={(e) => planSetLimit(cat, e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="bd-btn primary" onClick={createPlan}>Create Plan</button>
+                  <button className="bd-btn" onClick={() => setPlanForm({ name: "", budget: "", start: nowISODate(), end: nowISODate(), limits: {} })}>Clear</button>
                 </div>
               </div>
             </div>
 
-            {/* expense list (with search/sort applied) */}
-            <div style={{ marginTop: 18 }}>
-              <h4 style={{ marginBottom: 8 }}>Expenses ({filteredSortedExpenses.length})</h4>
-              <div className="expenses-grid">
-                {filteredSortedExpenses.length === 0 && <div className="muted">No expenses match your search.</div>}
-                {filteredSortedExpenses.map((e) => (
-                  <div key={e.id} className="expense-item" role="group" aria-label={`${e.name} ${fmtCurrency(e.amount, currency)}`}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                      <div style={{ width: 46, height: 46, borderRadius: 12, background: CATEGORY_COLORS[e.category], display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#04110f" }}>
-                        {e.category[0]}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{e.name}</div>
-                        <div className="muted" style={{ fontSize: 13 }}>{e.date} • {e.category} {e.recurring ? "• Recurring" : ""}</div>
-                      </div>
+            <div className="card">
+              <h2>Your Plans</h2>
+              {plans.length === 0 && <div className="muted">No plans yet</div>}
+              <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                {plans.map(p => (
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, borderRadius: 8, border: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>{p.name}</div>
+                      <div className="muted small">{p.start} → {p.end}</div>
+                      <div className="muted small">Budget: {fmtCurrency(p.budget,currency)}</div>
                     </div>
-
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <div style={{ fontWeight: 800 }}>{fmtCurrency(e.amount, currency)}</div>
-                      {editingId === e.id ? (
-                        <ExpenseEditor item={e} onSave={(edited) => saveEdit(e.id, edited)} onCancel={() => setEditingId(null)} />
-                      ) : (
-                        <>
-                          <button className="btn-ghost" onClick={() => startEdit(e.id)} aria-label="Edit">Edit</button>
-                          <button className="btn-ghost" onClick={() => removeExpense(e.id)} aria-label="Remove">Remove</button>
-                        </>
-                      )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="bd-btn" onClick={() => applyPlan(p.id)}>Apply</button>
+                      <button className="bd-btn ghost" onClick={() => deletePlan(p.id)}>Delete</button>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-
-          </motion.div>
-        </div>
-
-        {/* footer CTA */}
-        <div style={{ marginTop: 26, textAlign: "center" }}>
-          <div style={{ display: "inline-flex", gap: 12, padding: 12, borderRadius: 12, background: "linear-gradient(90deg, rgba(126,232,199,0.06), rgba(255,211,107,0.04))" }}>
-            <div style={{ fontWeight: 800 }}>You're ready to impress ✨</div>
-            <div className="muted">Use Export PDF to create a printable report — or export JSON to backup your data.</div>
           </div>
-        </div>
-      </div>
+        )}
+
+        {/* ====== REPORTS ====== */}
+        {page === "reports" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div className="card">
+              <h2>Visual Reports</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 12 }}>
+                <div style={{ height: 260 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={breakdown.map(b => ({ name: b.name, value: b.value }))}>
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value">
+                        {breakdown.map((b, i) => <Cell key={i} fill={CATEGORY_COLORS[b.name]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ height: 260 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={breakdown} dataKey="value" nameKey="name" innerRadius="40%" outerRadius="70%">
+                        {breakdown.map((b, i) => <Cell key={i} fill={CATEGORY_COLORS[b.name]} />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="bd-btn primary" onClick={() => exportPDF(expenses, "Full Budget Report")}>Export PDF</button>
+                <button className="bd-btn" onClick={() => exportCSV(expenses, `report-${new Date().toISOString().slice(0,10)}.csv`)}>Export CSV</button>
+                <button className="bd-btn" onClick={() => exportJSON({ expenses, breakdown, categoryTotals }, `report-${new Date().toISOString().slice(0,10)}.json`)}>Export JSON</button>
+              </div>
+            </div>
+
+            <div className="card">
+              <h2>Table Reports</h2>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign:"left", padding:8, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>Name</th>
+                      <th style={{ textAlign:"right", padding:8, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>Amount</th>
+                      <th style={{ textAlign:"left", padding:8, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>Category</th>
+                      <th style={{ textAlign:"left", padding:8, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenses.map(e => (
+                      <tr key={e.id}>
+                        <td style={{ padding:8, borderBottom: "1px solid rgba(0,0,0,0.03)" }}>{e.name}</td>
+                        <td style={{ padding:8, textAlign:"right", borderBottom: "1px solid rgba(0,0,0,0.03)" }}>{fmtCurrency(e.amount,currency)}</td>
+                        <td style={{ padding:8, borderBottom: "1px solid rgba(0,0,0,0.03)" }}>{e.category}</td>
+                        <td style={{ padding:8, borderBottom: "1px solid rgba(0,0,0,0.03)" }}>{e.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="bd-btn" onClick={() => exportCSV(expenses, `table-report-${new Date().toISOString().slice(0,10)}.csv`)}>Export CSV</button>
+                <button className="bd-btn" onClick={() => exportJSON({ expenses }, `table-report-${new Date().toISOString().slice(0,10)}.json`)}>Export JSON</button>
+                <button className="bd-btn" onClick={() => exportPDF(expenses, "Table Report")}>Export PDF</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ====== SETTINGS ====== */}
+        {page === "settings" && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div className="card">
+              <h2>Settings</h2>
+              <div style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <label className="muted small">Default currency</label>
+                  <select className="bd-small-select" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ marginTop: 8 }}>
+                    <option>USD</option><option>EUR</option><option>INR</option><option>JPY</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="muted small">Data controls</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button className="bd-btn" onClick={resetExpenses}>Reset expenses</button>
+                    <button className="bd-btn" onClick={resetTemplates}>Reset templates</button>
+                    <button className="bd-btn" onClick={resetAllData}>Reset everything</button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="muted small">Backup / Restore</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button className="bd-btn" onClick={exportBackup}>Export backup (JSON)</button>
+
+                    <label className="bd-btn" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                      Import backup
+                      <input type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => importBackup(e.target.files?.[0])} />
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="muted small">Category colors</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    {Object.keys(CATEGORY_COLORS).map(c => (
+                      <div key={c} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, background: CATEGORY_COLORS[c] }} />
+                        <div className="muted small">{c}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
+      </main>
     </div>
   );
 }

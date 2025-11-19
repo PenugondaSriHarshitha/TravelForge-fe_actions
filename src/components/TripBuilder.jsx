@@ -92,7 +92,7 @@ export default function TripBuilder({ onClose, onCreate }) {
       days: days.map((d) => d.title),
     };
 
-    fetch("http://localhost:8083/trip/create", {
+    fetch("http://localhost:8084/trip/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newTrip),

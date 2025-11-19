@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Share2, Heart, X, ArrowLeftCircle, ArrowRightCircle, ZoomIn, Download } from "lucide-react";
 import "./HiddenGems.css";
+import { API_BASE } from "../api/apiConfig";
 
 import hidden1 from "../images/hidden1.png";
 import hidden2 from "../images/hidden2.png";
@@ -312,7 +313,8 @@ export default function HiddenGems() {
 
     setProcessingBooking(true);
     try {
-      const res = await fetch("http://localhost:8083/api/bookings", {
+     const res = await fetch(`${API_BASE}/api/bookings`, {
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

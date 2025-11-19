@@ -2,7 +2,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import "./LocalGuides.css";
-const API_BASE = "http://localhost:8083/api/guides";
+import { API_BASE } from "../api/apiConfig";
+
+//const API_BASE = "http://localhost:8084/api/guides";
 
 /**
  * Full LocalGuides component
@@ -219,7 +221,9 @@ useEffect(() => {
   async function fetchData() {
     try {
       // Load published guides
-      const res = await fetch(`${API_BASE}?status=published`);
+      const res = await fetch(`${API_BASE}/api/guides`);
+
+
       const data = await res.json();
       setGuides(data);
       addToast({ content: "✅ Loaded from backend" });
@@ -230,7 +234,7 @@ useEffect(() => {
 
     try {
       // Load pending guides
-      const resP = await fetch(`${API_BASE}?status=pending`);
+      const resP = await fetch(`${API_BASE}/api/guides?status=pending`);
       const dataP = await resP.json();
       setPending(dataP);
     } catch (err) {
@@ -408,7 +412,7 @@ useEffect(() => {
   };
 
   try {
-    const res = await fetch(API_BASE, {
+    const res = await fetch(`${API_BASE}/api/guides`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(guide),
@@ -426,7 +430,10 @@ useEffect(() => {
 
   async function approvePending(id) {
   try {
-    const res = await fetch(`${API_BASE}/${id}/approve`, { method: "POST" });
+    const res = await fetch(`${API_BASE}/api/guides/${id}/approve`, {
+  method: "POST",
+});
+
     if (!res.ok) throw new Error("Failed to approve");
     const updated = await res.json();
     setGuides((g) => [updated, ...g]);
@@ -440,7 +447,10 @@ useEffect(() => {
 
   async function rejectPending(id) {
   try {
-    await fetch(`${API_BASE}/${id}/reject`, { method: "POST" });
+    await fetch(`${API_BASE}/api/guides/${id}/reject`, {
+  method: "POST",
+});
+
     setPending((p) => p.filter((x) => x.id !== id));
     addToast({ content: "❌ Rejected (updated backend)", variant: "warn" });
   } catch (err) {

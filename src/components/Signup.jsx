@@ -3,8 +3,9 @@ import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import "./Signup.css";
+import { API_BASE } from "../api/apiConfig";
 
-const BASE_URL = "http://localhost:8083";
+//const BASE_URL = "http://localhost:8084";
 
 export default function Signup({ open, onClose, defaultMode = "signup", onSuccess }) {
   const [mode, setMode] = useState(defaultMode);
@@ -33,7 +34,7 @@ export default function Signup({ open, onClose, defaultMode = "signup", onSucces
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await fetch(`${BASE_URL}/Travel/getAll`);
+      const res = await fetch(`${API_BASE}/Travel/getAll`);
       const json = await res.json();
       setTravels(json || []);
     } catch {
@@ -73,7 +74,7 @@ export default function Signup({ open, onClose, defaultMode = "signup", onSucces
     };
 
     try {
-      const res = await fetch(`${BASE_URL}/Travel/add`, {
+      const res = await fetch(`${API_BASE}/Travel/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -108,7 +109,7 @@ export default function Signup({ open, onClose, defaultMode = "signup", onSucces
     };
 
     try {
-      const res = await fetch(`${BASE_URL}/Travel/login`, {
+      const res = await fetch(`${API_BASE}/Travel/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
